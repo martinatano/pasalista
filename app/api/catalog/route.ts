@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    if (bodyTooLarge(request, 25_000_000)) return Response.json({ error: "El archivo supera el tamaño permitido. Reducí las imágenes y volvé a intentarlo." }, { status: 413 });
+    if (bodyTooLarge(request, 80_000_000)) return Response.json({ error: "La lista contiene demasiadas imágenes para procesarlas juntas. Excluí algunas fotos y volvé a intentarlo." }, { status: 413 });
     const payload = await request.json() as { filename?: string; products?: Array<{ code: string; name: string; detail?: string; category?: string; price: number; stock?: number; emoji?: string; imageDataUrl?: string | null }> };
     if (!payload.filename?.trim() || !payload.products?.length) return Response.json({ error: "La importación está vacía." }, { status: 400 });
     const valid = payload.products.filter((item) => item.code?.trim() && item.name?.trim() && Number(item.price) > 0).map((item) => ({ ...item, code: item.code.trim(), name: item.name.trim() }));

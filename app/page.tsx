@@ -16,15 +16,6 @@ type PendingMapping = { filename: string; headers: string[]; rows: unknown[][]; 
 type OrderItem = { id: number; productCode: string; productName: string; unitPrice: number; quantity: number };
 type Order = { id: number; customerName: string; customerPhone?: string; deliveryAddress?: string; notes?: string; total: number; status: "new" | "confirmed" | "prepared" | "delivered"; createdAt: string; items: OrderItem[] };
 
-const initialProducts: Product[] = [
-  { code: "POL-12", name: "Pollo entero", detail: "Caja 12 kg", category: "Pollos", price: 48000, stock: 18, emoji: "🍗" },
-  { code: "HUE-30", name: "Maple de huevos", detail: "30 unidades", category: "Huevos", price: 4800, stock: 42, emoji: "🥚" },
-  { code: "QUE-CR", name: "Queso cremoso", detail: "Precio por kg", category: "Quesos", price: 7200, stock: 25, emoji: "🧀" },
-  { code: "MUZ-04", name: "Muzzarella", detail: "Horma 4 kg", category: "Quesos", price: 31500, stock: 9, emoji: "🧀" },
-  { code: "PEC-10", name: "Pechuga congelada", detail: "Caja 10 kg", category: "Pollos", price: 67500, stock: 12, emoji: "❄️" },
-  { code: "HUE-C12", name: "Huevo color", detail: "Cajón 12 maples", category: "Huevos", price: 52800, stock: 7, emoji: "🥚" },
-];
-
 const pesos = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const productsPerPage = 24;
 const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -65,6 +56,34 @@ function bytesToDataUrl(bytes: Uint8Array, mime: string) {
   let binary = "";
   for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
   return `data:${mime};base64,${btoa(binary)}`;
+}
+
+function optimizeCatalogImage(dataUrl: string) {
+  return new Promise<string>((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const maximumSide = 720;
+      const scale = Math.min(1, maximumSide / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) return resolve(dataUrl);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const optimized = canvas.toDataURL("image/webp", 0.7);
+      resolve(optimized.length < dataUrl.length ? optimized : dataUrl);
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+async function optimizeCellImages(images: Map<number, string>) {
+  const optimizedBySource = new Map<string, string>();
+  await Promise.all(Array.from(new Set(images.values())).map(async (source) => {
+    optimizedBySource.set(source, await optimizeCatalogImage(source));
+  }));
+  return new Map(Array.from(images, ([row, source]) => [row, optimizedBySource.get(source) ?? source]));
 }
 
 function extractCellImages(buffer: ArrayBuffer) {
@@ -352,7 +371,8 @@ export default function Home() {
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
-      const cellImages = file.name.toLowerCase().endsWith(".xlsx") ? extractCellImages(buffer) : new Map<number, string>();
+      const extractedImages = file.name.toLowerCase().endsWith(".xlsx") ? extractCellImages(buffer) : new Map<number, string>();
+      const cellImages = await optimizeCellImages(extractedImages);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: true });
       if (!matrix.length) throw new Error("El archivo está vacío.");
