@@ -172,10 +172,11 @@ export default function Home() {
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutName, setCheckoutName] = useState("Almacén Don José");
+  const [checkoutName, setCheckoutName] = useState("");
   const [checkoutPhone, setCheckoutPhone] = useState("");
   const [checkoutAddress, setCheckoutAddress] = useState("");
   const [checkoutNotes, setCheckoutNotes] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
   const [catalogQr, setCatalogQr] = useState("");
   const [importReviewSearch, setImportReviewSearch] = useState("");
   const [justPublished, setJustPublished] = useState(false);
@@ -191,6 +192,7 @@ export default function Home() {
   const [businessSetupSaved, setBusinessSetupSaved] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const checkoutNameRef = useRef<HTMLInputElement>(null);
 
   const authenticatedFetch = useCallback(async (url: string, init?: RequestInit) => {
     const token = await getToken();
@@ -522,8 +524,13 @@ export default function Home() {
     if (accountPaused) { setCheckoutOpen(false); setNotice("El catálogo está pausado. Elegí un plan para volver a recibir pedidos."); return; }
     const selected = products.filter((product) => (quantities[product.code] ?? 0) > 0);
     const lines = selected.map((product) => `${quantities[product.code]} × ${product.name} (${product.code}) — ${pesos.format(product.price * quantities[product.code])}`);
-    if (!selected.length) { setNotice("Agregá al menos un producto antes de enviar el pedido."); return; }
-    if (checkoutName.trim().length < 2) { setNotice("Ingresá tu nombre o el de tu comercio."); return; }
+    if (!selected.length) { setCheckoutError("Agregá al menos un producto antes de enviar el pedido."); return; }
+    if (checkoutName.trim().length < 2) {
+      setCheckoutError("Completá el nombre o comercio para poder hacer el pedido.");
+      checkoutNameRef.current?.focus();
+      return;
+    }
+    setCheckoutError("");
     const message = [`*Pedido — ${checkoutName.trim()}*`, checkoutPhone.trim() ? `Teléfono: ${checkoutPhone.trim()}` : "", checkoutAddress.trim() ? `Dirección: ${checkoutAddress.trim()}` : "", "", ...lines, "", `*Total estimado: ${pesos.format(total)}*`, `Entrega: ${deliverySummary}`, checkoutNotes.trim() ? `Observaciones: ${checkoutNotes.trim()}` : ""].filter(Boolean).join("\n");
     setSaving(true);
     try {
@@ -818,8 +825,8 @@ export default function Home() {
           <div className="product-grid">{pagedProducts.map((product) => { const qty = quantities[product.code] ?? 0; const image = productImage(product); return <article className={`product ${accountPaused ? "preview-product" : ""}`} key={product.code}><span className="product-emoji">{image ? <img src={image} alt={product.name} /> : product.emoji}</span><div><b>{product.name}</b><small>{product.detail}{product.detail ? " · " : ""}{product.code}</small><strong>{pesos.format(product.price)}</strong></div><div className="quantity"><button disabled={accountPaused} onClick={() => updateQuantity(product.code, -1)} aria-label={`Quitar ${product.name}`}>−</button><span>{qty}</span><button disabled={accountPaused} onClick={() => updateQuantity(product.code, 1)} aria-label={`Agregar ${product.name}`}>+</button></div></article>; })}</div>
           {visibleProducts.length > productsPerPage && <nav className="catalog-pagination" aria-label="Páginas del catálogo"><span>Mostrando {(productPage - 1) * productsPerPage + 1}–{Math.min(productPage * productsPerPage, visibleProducts.length)} de {visibleProducts.length}</span><div><button disabled={productPage === 1} onClick={() => setProductPage((page) => Math.max(1, page - 1))}>Anterior</button><b>{productPage} de {productPageCount}</b><button disabled={productPage === productPageCount} onClick={() => setProductPage((page) => Math.min(productPageCount, page + 1))}>Siguiente</button></div></nav>}
           {!visibleProducts.length && <div className="empty">No encontramos productos con esa búsqueda.</div>}
-          {checkoutOpen && itemCount > 0 && <section className="checkout-panel"><header><div><h2>Revisá tu pedido</h2><p>Podés cambiar cantidades antes de enviarlo.</p></div><button onClick={() => setCheckoutOpen(false)} aria-label="Cerrar revisión">Cerrar</button></header><div className="checkout-items">{products.filter((product) => (quantities[product.code] ?? 0) > 0).map((product) => <div key={product.code}><span>{quantities[product.code]}×</span><div><b>{product.name}</b><small>{product.code}</small></div><strong>{pesos.format(product.price * quantities[product.code])}</strong></div>)}</div><div className="checkout-fields"><label>Nombre o comercio *<input required maxLength={100} value={checkoutName} onChange={(event) => setCheckoutName(event.target.value)} placeholder="Ej. Almacén Don José" /></label><label>Teléfono<input inputMode="tel" maxLength={30} value={checkoutPhone} onChange={(event) => setCheckoutPhone(event.target.value)} placeholder="Ej. 11 2345 6789" /></label><label className="wide">Dirección de entrega<input maxLength={180} value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)} placeholder="Calle, número y localidad" /></label><label className="wide">Observaciones<textarea maxLength={500} value={checkoutNotes} onChange={(event) => setCheckoutNotes(event.target.value)} placeholder="Horario, indicaciones o productos a reemplazar…" /></label></div><footer><span>Total</span><strong>{pesos.format(total)}</strong><button disabled={saving} onClick={sendOrder}>{saving ? "Preparando…" : "Confirmar y abrir WhatsApp"}</button></footer></section>}
-          <div className={`cart-bar ${accountPaused ? "preview-cart" : ""}`}><div><b>{accountPaused ? "Catálogo pausado" : `${itemCount} productos · ${pesos.format(total)}`}</b><small>{accountPaused ? "Solo vos podés ver esta vista previa" : `Entrega: ${deliverySummary}`}</small></div><button disabled={saving || itemCount === 0 || accountPaused} onClick={() => setCheckoutOpen(true)}>Revisar pedido</button></div>
+          {checkoutOpen && itemCount > 0 && <section className="checkout-panel" role="dialog" aria-modal="true" aria-labelledby="checkout-title"><header><div><h2 id="checkout-title">Revisá tu pedido</h2><p>Podés cambiar cantidades antes de enviarlo.</p></div><button onClick={() => { setCheckoutOpen(false); setCheckoutError(""); }} aria-label="Cerrar revisión">Cerrar</button></header><div className="checkout-items">{products.filter((product) => (quantities[product.code] ?? 0) > 0).map((product) => <div key={product.code}><span>{quantities[product.code]}×</span><div><b>{product.name}</b><small>{product.code}</small></div><strong>{pesos.format(product.price * quantities[product.code])}</strong></div>)}</div><div className="checkout-fields"><label>Nombre o comercio *<input ref={checkoutNameRef} required minLength={2} maxLength={100} aria-invalid={Boolean(checkoutError)} aria-describedby={checkoutError ? "checkout-error" : undefined} value={checkoutName} onChange={(event) => { setCheckoutName(event.target.value); if (checkoutError) setCheckoutError(""); }} placeholder="Ej. Almacén Don José" /></label><label>Teléfono<input inputMode="tel" maxLength={30} value={checkoutPhone} onChange={(event) => setCheckoutPhone(event.target.value)} placeholder="Ej. 11 2345 6789" /></label><label className="wide">Dirección de entrega<input maxLength={180} value={checkoutAddress} onChange={(event) => setCheckoutAddress(event.target.value)} placeholder="Calle, número y localidad" /></label><label className="wide">Observaciones<textarea maxLength={500} value={checkoutNotes} onChange={(event) => setCheckoutNotes(event.target.value)} placeholder="Horario, indicaciones o productos a reemplazar…" /></label>{checkoutError && <p className="checkout-error wide" id="checkout-error" role="alert">{checkoutError}</p>}</div><footer><span>Total</span><strong>{pesos.format(total)}</strong><button disabled={saving} onClick={sendOrder}>{saving ? "Preparando…" : "Confirmar y abrir WhatsApp"}</button></footer></section>}
+          <div className={`cart-bar ${accountPaused ? "preview-cart" : ""}`}><div><b>{accountPaused ? "Catálogo pausado" : `${itemCount} productos · ${pesos.format(total)}`}</b><small>{accountPaused ? "Solo vos podés ver esta vista previa" : `Entrega: ${deliverySummary}`}</small></div><button disabled={saving || itemCount === 0 || accountPaused} onClick={() => { setCheckoutError(""); setCheckoutOpen(true); }}>Revisar pedido</button></div>
         </div></section>
       )}
     </main>
