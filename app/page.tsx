@@ -187,6 +187,7 @@ export default function Home() {
   const [businessName, setBusinessName] = useState("Distribuidora El Buen Sabor");
   const [settings, setSettings] = useState<BusinessSettings>({ name: "Distribuidora El Buen Sabor", whatsapp: "", brandColor: "#fa7c4a", minimumOrder: 80000, deliveryZones: "Zona Norte", deliveryDays: "Jueves", slug: "el-buen-sabor" });
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
+  const [businessSetupSaved, setBusinessSetupSaved] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -219,6 +220,7 @@ export default function Home() {
         if (data.business?.name) {
           setBusinessName(data.business.name);
           setSettings({ ...data.business, brandColor: data.business.brandColor || "#fa7c4a", minimumOrder: Number(data.business.minimumOrder) || 0 });
+          setBusinessSetupSaved(data.business.name.trim().toLowerCase() !== "mi distribuidora" && data.business.whatsapp.replace(/\D/g, "").length >= 8);
           setBilling({ plan: data.business.plan || "trial", billingCycle: data.business.billingCycle || "monthly", subscriptionStatus: data.business.subscriptionStatus || "trial", trialEndsAt: data.business.trialEndsAt, currentPeriodEnd: data.business.currentPeriodEnd });
         }
         setProducts(data.products ?? []);
@@ -291,8 +293,7 @@ export default function Home() {
   const trialDaysLeft = Math.max(0, Math.ceil((trialEndTime - Date.now()) / (24 * 60 * 60 * 1000)));
   const paidPlanActive = activeBilling.subscriptionStatus === "authorized" || Boolean(activeBilling.currentPeriodEnd && new Date(activeBilling.currentPeriodEnd).getTime() > Date.now());
   const accountPaused = !trialActive && !paidPlanActive;
-  const businessSetupComplete = settings.name.trim().length >= 2 && settings.name.trim().toLowerCase() !== "mi distribuidora" && settings.whatsapp.replace(/\D/g, "").length >= 8;
-  const needsBusinessSetup = !catalogLoading && !businessSetupComplete;
+  const needsBusinessSetup = !catalogLoading && !businessSetupSaved;
   const canUseNegocio = trialActive || (paidPlanActive && activeBilling.plan === "negocio");
   const billingAnnual = paidPlanActive ? activeBilling.billingCycle === "annual" : annualPricing;
   const manualProducts = products.filter((product) => normalize(`${product.name} ${product.code} ${product.detail}`).includes(normalize(manualOrderSearch)) && product.stock !== 0);
@@ -473,6 +474,7 @@ export default function Home() {
       if (!response.ok || !data.business) throw new Error(data.error || "No pudimos guardar los datos del negocio.");
       setSettings(data.business);
       setBusinessName(data.business.name);
+      setBusinessSetupSaved(true);
       setNotice(products.length ? "Datos guardados. Tu catálogo ya está listo para recibir pedidos." : "Datos guardados. Ahora subí tu Excel para crear el catálogo.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "No pudimos guardar los datos del negocio.");
