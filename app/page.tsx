@@ -186,6 +186,7 @@ export default function Home() {
   const [isLocalPreview, setIsLocalPreview] = useState(false);
   const [businessName, setBusinessName] = useState("Distribuidora El Buen Sabor");
   const [settings, setSettings] = useState<BusinessSettings>({ name: "Distribuidora El Buen Sabor", whatsapp: "", brandColor: "#fa7c4a", minimumOrder: 80000, deliveryZones: "Zona Norte", deliveryDays: "Jueves", slug: "el-buen-sabor" });
+  const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
   const [logoVersion, setLogoVersion] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -290,6 +291,8 @@ export default function Home() {
   const trialDaysLeft = Math.max(0, Math.ceil((trialEndTime - Date.now()) / (24 * 60 * 60 * 1000)));
   const paidPlanActive = activeBilling.subscriptionStatus === "authorized" || Boolean(activeBilling.currentPeriodEnd && new Date(activeBilling.currentPeriodEnd).getTime() > Date.now());
   const accountPaused = !trialActive && !paidPlanActive;
+  const businessSetupComplete = settings.name.trim().length >= 2 && settings.name.trim().toLowerCase() !== "mi distribuidora" && settings.whatsapp.replace(/\D/g, "").length >= 8;
+  const needsBusinessSetup = !catalogLoading && !businessSetupComplete;
   const canUseNegocio = trialActive || (paidPlanActive && activeBilling.plan === "negocio");
   const billingAnnual = paidPlanActive ? activeBilling.billingCycle === "annual" : annualPricing;
   const manualProducts = products.filter((product) => normalize(`${product.name} ${product.code} ${product.detail}`).includes(normalize(manualOrderSearch)) && product.stock !== 0);
@@ -447,6 +450,32 @@ export default function Home() {
       setNotice("Configuración guardada. El catálogo ya muestra estos cambios.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "No pudimos guardar la configuración.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveBusinessSetup(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (onboardingStep === 1) {
+      if (settings.name.trim().length < 2 || settings.name.trim().toLowerCase() === "mi distribuidora") { setNotice("Ingresá el nombre real de tu negocio."); return; }
+      const phone = settings.whatsapp.replace(/\D/g, "");
+      if (phone.length < 8 || phone.length > 15) { setNotice("Ingresá un WhatsApp válido, con código de área."); return; }
+      setNotice("");
+      setOnboardingStep(2);
+      return;
+    }
+    setSaving(true);
+    setNotice("");
+    try {
+      const response = await authenticatedFetch("/api/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(settings) });
+      const data = await response.json() as { business?: BusinessSettings; error?: string };
+      if (!response.ok || !data.business) throw new Error(data.error || "No pudimos guardar los datos del negocio.");
+      setSettings(data.business);
+      setBusinessName(data.business.name);
+      setNotice(products.length ? "Datos guardados. Tu catálogo ya está listo para recibir pedidos." : "Datos guardados. Ahora subí tu Excel para crear el catálogo.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "No pudimos guardar los datos del negocio.");
     } finally {
       setSaving(false);
     }
@@ -737,7 +766,11 @@ export default function Home() {
             {accountPaused && section !== "billing" && <section className="account-paused-strip" role="status"><div><b>Tu catálogo está pausado</b><span>Conservamos tus productos y configuración. Elegí un plan para volver a publicarlo y recibir pedidos.</span></div><button onClick={() => setSection("billing")}>Reactivar catálogo</button></section>}
             {notice && <div className="notice" role="status">{notice}</div>}
             {justPublished && section === "catalog" && <section className="publish-success"><div className="success-mark">✓</div><div><h2>Tu catálogo ya está actualizado</h2><p>Este enlace siempre va a mostrar la última lista publicada.</p><div className="published-url"><span>{window.location.origin}/catalogo/</span><b>{settings.slug}</b></div><div className="publish-success-actions"><button className="primary" onClick={shareCatalog}>Compartir catálogo</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/catalogo/${settings.slug}`).then(() => setNotice("Enlace copiado."))}>Copiar enlace</button><a href={`/catalogo/${settings.slug}`} target="_blank" rel="noreferrer">Abrir catálogo</a></div></div>{catalogQr && <div className="success-qr"><img src={catalogQr} alt="Código QR del catálogo"/><button onClick={downloadCatalogQr}>Descargar QR</button></div>}<button className="success-close" aria-label="Cerrar confirmación" onClick={() => setJustPublished(false)}>Cerrar</button></section>}
-            {section === "catalog" ? <>
+            {needsBusinessSetup && section !== "billing" ? <form className="business-onboarding" onSubmit={saveBusinessSetup}>
+              <header><div><span>Paso {onboardingStep} de 2</span><h1>{onboardingStep === 1 ? "¿Cómo reciben los pedidos?" : "Definí cómo entregás"}</h1><p>{onboardingStep === 1 ? "Estos dos datos son necesarios para que cada pedido llegue al lugar correcto." : "Esto ayuda a que tus clientes conozcan las condiciones antes de armar el carrito."}</p></div><div className="onboarding-steps" aria-label={`Paso ${onboardingStep} de 2`}><i className="active"></i><i className={onboardingStep === 2 ? "active" : ""}></i></div></header>
+              {onboardingStep === 1 ? <section className="onboarding-fields"><label>Nombre del negocio<input required maxLength={80} value={settings.name === "Mi distribuidora" ? "" : settings.name} onChange={(event) => setSettings({ ...settings, name: event.target.value, slug: slugFrom(event.target.value) })} placeholder="Ej. Distribuidora El Buen Sabor" /><small>Es el nombre que van a ver tus clientes.</small></label><label>WhatsApp de pedidos<input required inputMode="tel" maxLength={24} value={settings.whatsapp} onChange={(event) => setSettings({ ...settings, whatsapp: event.target.value })} placeholder="Ej. +54 9 11 2345 6789" /><small>El pedido se prepara para enviarse a este número.</small></label></section> : <section className="onboarding-fields"><label>Pedido mínimo <small>Opcional</small><input type="number" min="0" step="100" value={settings.minimumOrder} onChange={(event) => setSettings({ ...settings, minimumOrder: Number(event.target.value) })} /><small>Dejalo en $0 si no tenés mínimo.</small></label><label>Zonas de entrega <small>Opcional</small><input maxLength={240} value={settings.deliveryZones} onChange={(event) => setSettings({ ...settings, deliveryZones: event.target.value })} placeholder="Ej. Ituzaingó y alrededores" /></label><label>Días de entrega <small>Opcional</small><input maxLength={160} value={settings.deliveryDays} onChange={(event) => setSettings({ ...settings, deliveryDays: event.target.value })} placeholder="Ej. Martes y jueves" /></label></section>}
+              <footer>{onboardingStep === 2 ? <button type="button" onClick={() => { setOnboardingStep(1); setNotice(""); }}>Volver</button> : <span>Te va a llevar menos de un minuto.</span>}<button className="primary" disabled={saving} type="submit">{saving ? "Guardando…" : onboardingStep === 1 ? "Continuar" : products.length ? "Guardar y continuar" : "Guardar y subir mi Excel"}</button></footer>
+            </form> : section === "catalog" ? <>
               <div className="page-heading"><div><span className="page-kicker">CATÁLOGO</span><h1>{products.length ? "Tu lista, siempre al día" : "Creá tu primer catálogo"}</h1><p>{businessName}{products.length > 0 && <> · <b className={accountPaused ? "paused-status" : "live-status"}>{accountPaused ? "Pausado" : "Publicado"}</b></>}</p></div><input ref={fileRef} className="hidden-file" type="file" accept=".xlsx,.xls,.csv" onChange={readExcel}/>{products.length > 0 && (accountPaused ? <button className="primary upload-primary" onClick={() => setSection("billing")}>Elegir un plan</button> : <button className="primary upload-primary" onClick={() => fileRef.current?.click()}><span>↑</span> Subir lista nueva</button>)}</div>
               {pendingMapping && <section className="mapping-panel"><div className="mapping-intro"><span>Necesitamos una ayuda</span><h2>¿Qué información hay en cada columna?</h2><p>Tu archivo está bien. Solo indicá dónde están el producto y el precio; el resto es opcional.</p></div><div className="mapping-fields">
                 {([['name','Producto'],['price','Precio'],['code','Código'],['stock','Stock'],['category','Categoría'],['detail','Presentación']] as Array<[MappingKey,string]>).map(([key, label]) => <label key={key}>{label}{key !== 'name' && key !== 'price' && <small>Opcional</small>}<select value={pendingMapping.mapping[key] ?? ""} onChange={(event) => setPendingMapping({ ...pendingMapping, mapping: { ...pendingMapping.mapping, [key]: event.target.value === "" ? null : Number(event.target.value) } })}><option value="">Elegir columna…</option>{pendingMapping.headers.map((header, index) => <option value={index} key={`${header}-${index}`}>{header}</option>)}</select></label>)}

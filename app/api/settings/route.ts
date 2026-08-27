@@ -13,8 +13,10 @@ export async function PATCH(request: Request) {
 
   const payload = await request.json() as { name?: string; whatsapp?: string; brandColor?: string; minimumOrder?: number; deliveryZones?: string; deliveryDays?: string };
   const name = payload.name?.trim() ?? "";
+  const whatsapp = (payload.whatsapp ?? "").replace(/\D/g, "");
   const brandColor = payload.brandColor?.trim() ?? "";
   if (name.length < 2) return Response.json({ error: "Ingresá el nombre del negocio." }, { status: 400 });
+  if (whatsapp.length < 8 || whatsapp.length > 15) return Response.json({ error: "Ingresá un WhatsApp válido, con código de área." }, { status: 400 });
   if (!hexColor.test(brandColor)) return Response.json({ error: "Elegí un color válido para tu marca." }, { status: 400 });
 
   const db = getDb();
@@ -36,7 +38,7 @@ export async function PATCH(request: Request) {
   const [business] = await db.update(businesses).set({
     name: name.slice(0, 80),
     slug,
-    whatsapp: (payload.whatsapp ?? "").replace(/[^0-9+]/g, "").slice(0, 20),
+    whatsapp: `+${whatsapp}`,
     brandColor,
     minimumOrder: Math.max(0, Number(payload.minimumOrder) || 0),
     deliveryZones: (payload.deliveryZones ?? "").trim().slice(0, 240),

@@ -64,6 +64,7 @@ export async function POST(request: Request) {
     const db = getDb();
     const business = await requireBusiness(request);
     if (!business) return Response.json({ error: "Iniciá sesión para publicar tu catálogo." }, { status: 401 });
+    if (business.name.trim().toLowerCase() === "mi distribuidora" || business.whatsapp.replace(/\D/g, "").length < 8) return Response.json({ error: "Antes de publicar, configurá el nombre del negocio y el WhatsApp donde querés recibir pedidos." }, { status: 409 });
     const devPlan = devPlanFrom(request);
     const trialActive = devPlan === "trial" || (!devPlan && business.subscriptionStatus !== "authorized" && Boolean(business.trialEndsAt) && new Date(business.trialEndsAt!).getTime() > Date.now());
     const paidPeriodActive = Boolean(business.currentPeriodEnd) && new Date(business.currentPeriodEnd!).getTime() > Date.now();
