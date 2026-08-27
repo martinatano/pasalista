@@ -1,0 +1,22 @@
+.publish-success { position:relative; display:grid; grid-template-columns:44px minmax(0,1fr) 118px; gap:18px; align-items:start; margin-bottom:22px; padding:22px; border:1px solid #cfe3d5; border-radius:16px; background:#f4faf6; box-shadow:0 12px 30px rgba(29,76,45,.08); }
+.success-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:13px; background:#dff1e5; color:#247247; font-size:18px; font-weight:850; }
+.publish-success h2 { margin:1px 0 6px; font-size:20px; letter-spacing:-.4px; }
+.publish-success p { margin:0 0 14px; color:#66746b; font-size:11px; }
+.published-url { display:flex; align-items:center; min-height:40px; overflow:hidden; padding:0 12px; border:1px solid #d4e1d8; border-radius:10px; background:white; font-size:11px; }
+.published-url span { color:var(--muted); white-space:nowrap; }
+.published-url b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.publish-success-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.publish-success-actions button,.publish-success-actions a { display:grid; place-items:center; min-height:38px; padding:0 13px; border:1px solid #d1ddd5; border-radius:10px; background:white; color:var(--ink); font-size:10px; font-weight:750; text-decoration:none; }
+.publish-success-actions .primary { border:0; background:var(--accent); }
+.success-qr { display:grid; justify-items:center; gap:7px; }
+.success-qr img { width:110px; height:110px; border-radius:8px; }
+.success-qr button { border:0; background:transparent; color:#3f6950; font-size:9px; font-weight:750; }
+.success-close { position:absolute; top:12px; right:12px; border:0; background:transparent; color:var(--muted); font-size:10px; }
+@media(max-width:700px) {
+  .publish-success { grid-template-columns:38px 1fr; padding:18px; }
+  .success-mark { width:38px; height:38px; }
+  .success-qr { grid-column:2; grid-template-columns:82px auto; align-items:center; justify-items:start; }
+  .success-qr img { width:82px; height:82px; }
+  .publish-success-actions { display:grid; grid-template-columns:1fr 1fr; }
+  .publish-success-actions .primary { grid-column:1/-1; }
+}

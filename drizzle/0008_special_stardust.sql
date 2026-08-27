@@ -1,0 +1,1 @@
+ALTER TABLE `businesses` ADD `billing_cycle` text DEFAULT 'monthly' NOT NULL;

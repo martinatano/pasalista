@@ -1,0 +1,27 @@
+.import-review-tools { grid-column:1/-1; display:flex; align-items:end; justify-content:space-between; gap:18px; padding-top:18px; border-top:1px solid #efd8cd; }
+.import-review-tools label { display:grid; gap:7px; width:min(100%,420px); color:#5b514d; font-size:11px; font-weight:750; }
+.import-review-tools input { width:100%; min-height:42px; padding:0 12px; border:1px solid #e1cfc7; border-radius:10px; background:white; color:var(--ink); font-size:16px; }
+.import-review-tools small { color:var(--muted); font-size:10px; }
+.product-limit-block { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:18px; border-radius:13px; background:#272f2a; color:white; }
+.product-limit-block>div:first-child { min-width:0; }
+.product-limit-block strong { display:block; margin-bottom:5px; font-size:16px; letter-spacing:-.15px; }
+.product-limit-block p { max-width:62ch; color:#d5ddd7; line-height:1.5; }
+.product-limit-block>div:last-child { display:flex; flex:0 0 auto; align-items:center; gap:8px; }
+.product-limit-block button { min-height:42px; padding:0 14px; border:1px solid #637069; border-radius:10px; background:transparent; color:white; font-size:12px; font-weight:750; white-space:nowrap; }
+.product-limit-block button.primary { border-color:var(--accent); background:var(--accent); color:#301207; }
+.product-limit-block button:disabled { cursor:not-allowed; opacity:.55; }
+.import-preview-full { max-height:390px; overflow:auto; }
+.import-preview-full div { grid-template-columns:38px minmax(0,1.4fr) minmax(70px,.6fr) minmax(80px,.6fr) auto; align-items:center; }
+.import-preview-full>div>span:nth-child(2) { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.import-image-empty { display:grid; place-items:center; width:38px; height:38px; border-radius:9px; background:#f3eee5; }
+.import-preview-full button { min-height:32px; padding:0 10px; border:1px solid #e1cfc7; border-radius:8px; background:white; color:#8d4b34; font-size:10px; font-weight:750; }
+.import-preview-full button:hover { background:#fff7f3; border-color:#cda997; }
+@media(max-width:650px) {
+  .product-limit-block { align-items:stretch; flex-direction:column; gap:14px; }
+  .product-limit-block>div:last-child { align-items:stretch; flex-direction:column; }
+  .product-limit-block button { width:100%; }
+  .import-review-tools { align-items:stretch; flex-direction:column; }
+  .import-review-tools label { width:100%; }
+  .import-preview-full div { grid-template-columns:38px 1fr auto; }
+  .import-preview-full code,.import-preview-full div>b { display:none; }
+}

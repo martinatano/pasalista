@@ -1,0 +1,22 @@
+import type { Metadata } from "next";
+import LegalPage from "../legal/legal-page";
+import { legalConfig } from "../legal/legal-config";
+
+export const metadata: Metadata = { title: "Términos de uso — PasáLista", description: "Condiciones para usar PasáLista." };
+
+export default function TermsPage() {
+  return <LegalPage title="Términos de uso" summary={`Última actualización: ${legalConfig.updatedAt}. Estas condiciones regulan el uso de PasáLista por comercios y sus equipos.`}>
+    <section><h2>1. Quién presta el servicio</h2><p>PasáLista es prestado por {legalConfig.name}, {legalConfig.taxId}, con domicilio en {legalConfig.address}. Para consultas podés escribir a <a href={`mailto:${legalConfig.email}`}>{legalConfig.email}</a>.</p></section>
+    <section><h2>2. Qué ofrece PasáLista</h2><p>PasáLista permite convertir listas de productos en catálogos digitales, recibir pedidos y, según el plan contratado, administrar pedidos, clientes y documentos de preparación. El comercio continúa siendo responsable de sus precios, stock, condiciones de venta, entregas, impuestos y relación con sus clientes.</p></section>
+    <section><h2>3. Cuenta y seguridad</h2><p>Para usar el panel necesitás una cuenta. Debés brindar información correcta, mantener tus credenciales protegidas y avisarnos si detectás un acceso no autorizado. Las acciones realizadas desde tu cuenta se consideran realizadas por vos o por integrantes autorizados de tu equipo.</p></section>
+    <section><h2>4. Prueba, planes y pagos</h2><p>La prueba gratuita dura 14 días y no requiere tarjeta. Al finalizar, el catálogo puede quedar pausado hasta que elijas un plan. Los precios, límites y funciones vigentes se muestran antes de contratar. Los cobros se procesan mediante Mercado Pago; PasáLista no almacena los datos completos de tu tarjeta.</p></section>
+    <section><h2>5. Renovación y cancelación</h2><p>Los planes se renuevan por el período elegido hasta que solicites la baja. Podés cancelarlos desde los mecanismos disponibles en el sitio. La baja evita nuevas renovaciones y el servicio continúa hasta finalizar el período ya abonado, salvo que la normativa aplicable disponga otra cosa. Consultá la <a href="/cancelacion">Política de cancelación</a>.</p></section>
+    <section><h2>6. Contenido y datos del comercio</h2><p>Conservás los derechos sobre los archivos, imágenes, marcas y datos que cargues. Nos autorizás a procesarlos únicamente para prestar, proteger y mejorar el servicio. Declarás contar con los permisos necesarios para publicar ese contenido y tratar los datos de tus clientes.</p></section>
+    <section><h2>7. Uso permitido</h2><p>No podés usar PasáLista para actividades ilegales, engañosas o que vulneren derechos de terceros; introducir software malicioso; intentar acceder a cuentas ajenas; eludir límites del plan; ni afectar la disponibilidad o seguridad de la plataforma.</p></section>
+    <section><h2>8. Disponibilidad y respaldo</h2><p>Trabajamos para mantener el servicio disponible y proteger la información, pero pueden existir interrupciones por mantenimiento, proveedores externos o hechos fuera de nuestro control. El comercio debe conservar una copia de sus archivos originales y verificar la lista publicada después de cada importación.</p></section>
+    <section><h2>9. Responsabilidad</h2><p>PasáLista es una herramienta tecnológica y no participa en la compraventa entre el comercio y sus clientes. No garantizamos ventas, cobros, entregas ni la exactitud de información cargada por el comercio. Nada en estos términos limita derechos irrenunciables reconocidos por la normativa aplicable.</p></section>
+    <section><h2>10. Suspensión y finalización</h2><p>Podemos suspender una cuenta por falta de pago, riesgo de seguridad, uso abusivo o incumplimiento de estos términos. Siempre que sea razonable, informaremos el motivo y una forma de regularizar la situación. La información se conservará durante los plazos operativos, contractuales y legales indicados en la Política de privacidad.</p></section>
+    <section><h2>11. Cambios y ley aplicable</h2><p>Podemos actualizar estas condiciones para reflejar cambios del servicio o de la normativa. Informaremos los cambios relevantes antes de que entren en vigor. Se aplica la legislación de la República Argentina, sin afectar la jurisdicción ni los derechos que correspondan a consumidores o usuarios.</p></section>
+  </LegalPage>;
+}
+
