@@ -30,7 +30,7 @@ La empresa inicia sesión desde cualquier dispositivo, administra su catálogo y
 - Catálogo, carrito, repetición de pedido y preparación del mensaje para WhatsApp.
 - La carga debe sentirse mínima y no obligar a reconstruir manualmente el inventario.
 - Los clientes del catálogo público no deben necesitar una cuenta.
-- Una empresa puede administrar hasta tres catálogos independientes en el plan Negocio.
+- Una empresa puede administrar hasta tres catálogos en Negocio y hasta veinte en Empresa.
 - El archivo original no se almacena en el MVP; se guardan los datos procesados y el historial de importación.
 
 ## Brand Commitments

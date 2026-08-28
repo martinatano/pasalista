@@ -4,7 +4,7 @@ import { businesses } from "@/db/schema";
 import { authenticatedUserId } from "../../auth";
 import { bodyTooLarge, rateLimit, rateLimitResponse } from "../../security";
 
-const plans = { simple: { monthly: 12900, annual: 129000, reason: "PasáLista Simple" }, negocio: { monthly: 24900, annual: 249000, reason: "PasáLista Negocio" } } as const;
+const plans = { simple: { monthly: 12900, annual: 129000, reason: "PasáLista Simple", level: 1 }, negocio: { monthly: 24900, annual: 249000, reason: "PasáLista Negocio", level: 2 }, empresa: { monthly: 44900, annual: 449000, reason: "PasáLista Empresa", level: 3 } } as const;
 
 export async function POST(request: Request) {
   try {
@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     if (!business) return Response.json({ error: "Primero configurá tu negocio." }, { status: 404 });
     if (business.subscriptionStatus === "authorized" && business.mpPreapprovalId) {
       if (business.plan === payload.plan) return Response.json({ error: "Ese ya es tu plan actual." }, { status: 409 });
-      if (business.plan !== "simple" || payload.plan !== "negocio") return Response.json({ error: "El cambio a Simple se aplica al finalizar el período actual." }, { status: 409 });
+      const currentPlan = plans[business.plan as keyof typeof plans];
+      if (!currentPlan || currentPlan.level >= plan.level) return Response.json({ error: "Los cambios a un plan menor se aplican al finalizar el período actual." }, { status: 409 });
       const currentCycle = business.billingCycle === "annual" ? "annual" : "monthly";
       const upgradeResponse = await fetch(`https://api.mercadopago.com/preapproval/${encodeURIComponent(business.mpPreapprovalId)}`, { method: "PUT", headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" }, body: JSON.stringify({ reason: `${plan.reason} ${currentCycle === "annual" ? "Anual" : "Mensual"}`, auto_recurring: { transaction_amount: plan[currentCycle], currency_id: "ARS" } }) });
       const upgradeData = await upgradeResponse.json() as { id?: string; status?: string; error?: string; message?: string; cause?: Array<{ description?: string }> };
@@ -33,8 +34,8 @@ export async function POST(request: Request) {
         const causes = upgradeData.cause?.map((cause) => cause.description).filter(Boolean).join(" · ");
         throw new Error([upgradeData.message || upgradeData.error || "Mercado Pago rechazó el cambio de plan.", causes].filter(Boolean).join(" — "));
       }
-      await db.update(businesses).set({ plan: "negocio", subscriptionStatus: "authorized" }).where(eq(businesses.ownerUserId, userId));
-      return Response.json({ upgraded: true, plan: "negocio", billingCycle: currentCycle });
+      await db.update(businesses).set({ plan: payload.plan, subscriptionStatus: "authorized" }).where(eq(businesses.ownerUserId, userId));
+      return Response.json({ upgraded: true, plan: payload.plan, billingCycle: currentCycle });
     }
     const isTestMode = accessToken.startsWith("TEST-");
     const testPayerEmail = process.env.MERCADOPAGO_TEST_PAYER_EMAIL?.trim();

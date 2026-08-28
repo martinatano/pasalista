@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const devPlan = devPlanFrom(request);
   const trialActive = devPlan === "trial" || (!devPlan && business.subscriptionStatus !== "authorized" && Boolean(business.trialEndsAt) && new Date(business.trialEndsAt!).getTime() > Date.now());
   const paidPeriodActive = Boolean(business.currentPeriodEnd) && new Date(business.currentPeriodEnd!).getTime() > Date.now();
-  const subscriptionActive = devPlan === "simple" || devPlan === "negocio" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive));
+  const subscriptionActive = devPlan === "simple" || devPlan === "negocio" || devPlan === "empresa" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive));
   if (!trialActive && !subscriptionActive) return Response.json({ error: "Tu catálogo está pausado. Elegí un plan para cambiar el logo." }, { status: 403 });
   const extension = file.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
   const key = `logos/${business.id}/${crypto.randomUUID()}.${extension}`;

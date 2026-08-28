@@ -73,8 +73,8 @@ export async function POST(request: Request) {
     const devPlan = devPlanFrom(request);
     const trialActive = devPlan === "trial" || (!devPlan && business.subscriptionStatus !== "authorized" && Boolean(business.trialEndsAt) && new Date(business.trialEndsAt!).getTime() > Date.now());
     const paidPeriodActive = Boolean(business.currentPeriodEnd) && new Date(business.currentPeriodEnd!).getTime() > Date.now();
-    const subscriptionActive = devPlan === "simple" || devPlan === "negocio" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive));
-    const negocioActive = devPlan === "negocio" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive) && business.plan === "negocio");
+    const subscriptionActive = devPlan === "simple" || devPlan === "negocio" || devPlan === "empresa" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive));
+    const negocioActive = devPlan === "negocio" || devPlan === "empresa" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive) && (business.plan === "negocio" || business.plan === "empresa"));
     if (!trialActive && !subscriptionActive) return Response.json({ error: "Tu prueba terminó. Elegí un plan para volver a publicar el catálogo." }, { status: 403 });
     if (!trialActive && !negocioActive && clean.length > 300) return Response.json({ error: "El plan Simple admite hasta 300 productos. Elegí Negocio para publicar la lista completa." }, { status: 403 });
     const previousProducts = await db.select({ code: products.code, imageKey: products.imageKey }).from(products).where(eq(products.businessId, business.id));

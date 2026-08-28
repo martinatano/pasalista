@@ -11,10 +11,10 @@ async function ownedBusiness(request: Request) {
 function hasNegocioAccess(request: Request, business: Awaited<ReturnType<typeof ownedBusiness>>) {
   if (!business) return false;
   const devPlan = devPlanFrom(request);
-  if (devPlan) return devPlan === "trial" || devPlan === "negocio";
+  if (devPlan) return devPlan === "trial" || devPlan === "negocio" || devPlan === "empresa";
   const trialActive = business.subscriptionStatus !== "authorized" && Boolean(business.trialEndsAt) && new Date(business.trialEndsAt!).getTime() > Date.now();
   const paidPeriodActive = Boolean(business.currentPeriodEnd) && new Date(business.currentPeriodEnd!).getTime() > Date.now();
-  return trialActive || ((business.subscriptionStatus === "authorized" || paidPeriodActive) && business.plan === "negocio");
+  return trialActive || ((business.subscriptionStatus === "authorized" || paidPeriodActive) && (business.plan === "negocio" || business.plan === "empresa"));
 }
 
 function hasCatalogAccess(request: Request, business: Awaited<ReturnType<typeof ownedBusiness>>) {

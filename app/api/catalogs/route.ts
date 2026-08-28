@@ -19,9 +19,10 @@ export async function POST(request: Request) {
   const devPlan = devPlanFrom(request);
   const trialActive = devPlan === "trial" || (!devPlan && account.subscriptionStatus !== "authorized" && Boolean(account.trialEndsAt) && new Date(account.trialEndsAt!).getTime() > Date.now());
   const paidPeriodActive = Boolean(account.currentPeriodEnd) && new Date(account.currentPeriodEnd!).getTime() > Date.now();
-  const negocioActive = devPlan === "negocio" || (!devPlan && (account.subscriptionStatus === "authorized" || paidPeriodActive) && account.plan === "negocio");
+  const negocioActive = devPlan === "negocio" || devPlan === "empresa" || (!devPlan && (account.subscriptionStatus === "authorized" || paidPeriodActive) && (account.plan === "negocio" || account.plan === "empresa"));
   if (!trialActive && !negocioActive) return Response.json({ error: "Los catálogos adicionales están incluidos en el plan Negocio." }, { status: 403 });
-  if (owned.length >= 3) return Response.json({ error: "El plan Negocio permite hasta 3 catálogos." }, { status: 409 });
+  const catalogLimit = devPlan === "empresa" || (!devPlan && account.plan === "empresa" && (account.subscriptionStatus === "authorized" || paidPeriodActive)) ? 20 : 3;
+  if (owned.length >= catalogLimit) return Response.json({ error: catalogLimit === 20 ? "El plan Empresa permite hasta 20 catálogos." : "El plan Negocio permite hasta 3 catálogos. Elegí Empresa para crear hasta 20." }, { status: 409 });
   const baseSlug = slugFrom(name);
   let slug = baseSlug;
   let suffix = 2;

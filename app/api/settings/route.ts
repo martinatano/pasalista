@@ -26,7 +26,7 @@ export async function PATCH(request: Request) {
   const devPlan = devPlanFrom(request);
   const trialActive = devPlan === "trial" || (!devPlan && currentBusiness.subscriptionStatus !== "authorized" && Boolean(currentBusiness.trialEndsAt) && new Date(currentBusiness.trialEndsAt!).getTime() > Date.now());
   const paidPeriodActive = Boolean(currentBusiness.currentPeriodEnd) && new Date(currentBusiness.currentPeriodEnd!).getTime() > Date.now();
-  const subscriptionActive = devPlan === "simple" || devPlan === "negocio" || (!devPlan && (currentBusiness.subscriptionStatus === "authorized" || paidPeriodActive));
+  const subscriptionActive = devPlan === "simple" || devPlan === "negocio" || devPlan === "empresa" || (!devPlan && (currentBusiness.subscriptionStatus === "authorized" || paidPeriodActive));
   if (!trialActive && !subscriptionActive) return Response.json({ error: "Tu catálogo está pausado. Elegí un plan para guardar cambios." }, { status: 403 });
   const baseSlug = slugFrom(name);
   let slug = baseSlug;
