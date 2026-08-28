@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { businesses } from "@/db/schema";
 import { authenticatedUserId } from "../auth";
 import { devPlanFrom } from "../dev-plan";
+import { ownedBusiness } from "../owned-business";
 
 export async function GET(request: Request) {
   const slug = new URL(request.url).searchParams.get("slug") ?? "";
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   if (file.size > 2_000_000) return Response.json({ error: "El logo debe pesar menos de 2 MB." }, { status: 400 });
 
   const db = getDb();
-  const [business] = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).limit(1);
+  const business = await ownedBusiness(request);
   if (!business) return Response.json({ error: "No encontramos tu empresa." }, { status: 404 });
   const devPlan = devPlanFrom(request);
   const trialActive = devPlan === "trial" || (!devPlan && business.subscriptionStatus !== "authorized" && Boolean(business.trialEndsAt) && new Date(business.trialEndsAt!).getTime() > Date.now());

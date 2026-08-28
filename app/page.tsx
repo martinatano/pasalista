@@ -7,7 +7,8 @@ import * as XLSX from "xlsx";
 
 type Product = { code: string; name: string; detail: string; category: string; price: number; stock?: number | null; emoji: string; imageKey?: string | null; imageDataUrl?: string | null };
 type ImportSummary = { filename: string; added: number; updated: number; removed: number; adjustedCodes: number; products: Product[] };
-type BusinessSettings = { name: string; whatsapp: string; brandColor: string; minimumOrder: number; deliveryZones: string; deliveryDays: string; slug: string; logoKey?: string | null };
+type BusinessSettings = { id?: number; name: string; whatsapp: string; brandColor: string; minimumOrder: number; deliveryZones: string; deliveryDays: string; slug: string; logoKey?: string | null };
+type CatalogSummary = { id: number; name: string; slug: string };
 type BillingInfo = { plan: "trial" | "simple" | "negocio"; billingCycle: "monthly" | "annual"; subscriptionStatus: "trial" | "pending" | "authorized" | "paused" | "cancelled"; trialEndsAt?: string | null; currentPeriodEnd?: string | null };
 type DevScenario = "trial" | "simple" | "negocio" | "expired";
 type MappingKey = "name" | "price" | "code" | "detail" | "category" | "stock";
@@ -190,6 +191,10 @@ export default function Home() {
   const [minimumOrderInput, setMinimumOrderInput] = useState("80000");
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
   const [businessSetupSaved, setBusinessSetupSaved] = useState(false);
+  const [catalogs, setCatalogs] = useState<CatalogSummary[]>([]);
+  const [activeCatalogId, setActiveCatalogId] = useState<number | null>(null);
+  const [newCatalogOpen, setNewCatalogOpen] = useState(false);
+  const [newCatalogName, setNewCatalogName] = useState("");
   const [logoVersion, setLogoVersion] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const checkoutNameRef = useRef<HTMLInputElement>(null);
@@ -198,12 +203,13 @@ export default function Home() {
     const token = await getToken();
     const headers = new Headers(init?.headers);
     if (token) headers.set("authorization", `Bearer ${token}`);
+    if (activeCatalogId) headers.set("x-pasalista-catalog-id", String(activeCatalogId));
     if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
       const localPlan = window.localStorage.getItem("pasalista-dev-plan");
       if (localPlan) headers.set("x-pasalista-dev-plan", localPlan);
     }
     return fetch(url, { ...init, headers });
-  }, [getToken]);
+  }, [activeCatalogId, getToken]);
 
   useEffect(() => {
     if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") return;
@@ -217,10 +223,12 @@ export default function Home() {
     let active = true;
     authenticatedFetch("/api/catalog")
       .then(async (response) => {
-        const data = await response.json() as { business?: BusinessSettings & BillingInfo; products?: Product[]; lastImport?: { filename: string; createdAt: string } | null; orders?: number; error?: string };
+        const data = await response.json() as { business?: BusinessSettings & BillingInfo; catalogs?: CatalogSummary[]; products?: Product[]; lastImport?: { filename: string; createdAt: string } | null; orders?: number; error?: string };
         if (!response.ok) throw new Error(data.error || "No pudimos conectar la base de datos.");
         if (!active) return;
         if (data.business?.name) {
+          if (data.business.id) setActiveCatalogId(data.business.id);
+          setCatalogs(data.catalogs ?? []);
           setBusinessName(data.business.name);
           setSettings({ ...data.business, brandColor: data.business.brandColor || "#fa7c4a", minimumOrder: Number(data.business.minimumOrder) || 0 });
           setMinimumOrderInput(String(Number(data.business.minimumOrder) || 0));
@@ -238,6 +246,21 @@ export default function Home() {
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
   }, [authenticatedFetch, isLoaded, isSignedIn]);
+
+  async function createCatalog(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (newCatalogName.trim().length < 2) { setNotice("Ingresá un nombre para el nuevo catálogo."); return; }
+    setSaving(true); setNotice("");
+    try {
+      const response = await authenticatedFetch("/api/catalogs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: newCatalogName }) });
+      const data = await response.json() as { business?: CatalogSummary; error?: string };
+      if (!response.ok || !data.business) throw new Error(data.error || "No pudimos crear el catálogo.");
+      setCatalogs((current) => [...current, data.business!]);
+      setNewCatalogName(""); setNewCatalogOpen(false); setSection("catalog"); setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setActiveCatalogId(data.business.id);
+      setNotice("Nuevo catálogo creado. Configurá sus datos y después subí el Excel.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "No pudimos crear el catálogo."); }
+    finally { setSaving(false); }
+  }
 
   useEffect(() => {
     if ((section !== "orders" && section !== "customers") || !isSignedIn) return;
@@ -453,6 +476,7 @@ export default function Home() {
       setSettings(data.business);
       setMinimumOrderInput(String(Number(data.business.minimumOrder) || 0));
       setBusinessName(data.business.name);
+      if (data.business.id) setCatalogs((current) => current.map((catalog) => catalog.id === data.business!.id ? { id: catalog.id, name: data.business!.name, slug: data.business!.slug } : catalog));
       setNotice("Configuración guardada. El catálogo ya muestra estos cambios.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "No pudimos guardar la configuración.");
@@ -480,6 +504,7 @@ export default function Home() {
       setSettings(data.business);
       setMinimumOrderInput(String(Number(data.business.minimumOrder) || 0));
       setBusinessName(data.business.name);
+      if (data.business.id) setCatalogs((current) => current.map((catalog) => catalog.id === data.business!.id ? { id: catalog.id, name: data.business!.name, slug: data.business!.slug } : catalog));
       setBusinessSetupSaved(true);
       setNotice(products.length ? "Datos guardados. Tu catálogo ya está listo para recibir pedidos." : "Datos guardados. Ahora subí tu Excel para crear el catálogo.");
     } catch (error) {
@@ -745,7 +770,7 @@ export default function Home() {
         <section className="trust-line"><strong>Una herramienta nueva, sin cambiar cómo trabajás.</strong><span>Excel para actualizar</span><span>Un enlace para vender</span><span>WhatsApp para recibir</span></section>
         <section className="how" id="como-funciona"><div className="section-heading"><h2>Del archivo al pedido, sin vueltas.</h2><p>PasáLista conecta las herramientas que tu negocio ya usa.</p></div><div className="steps"><article><div className="step-icon"><FlowIcon type="file"/></div><div><h3>Subí la lista que ya tenés</h3><p>Detectamos productos, precios, códigos, categorías y stock. No cargás el catálogo a mano.</p></div></article><article><div className="step-icon"><FlowIcon type="link"/></div><div><h3>Compartí un solo enlace</h3><p>Tu catálogo mantiene el nombre, los colores y la información de entrega de tu negocio.</p></div></article><article><div className="step-icon"><FlowIcon type="message"/></div><div><h3>Recibí el pedido completo</h3><p>El cliente arma el carrito y te llega el detalle listo para continuar por WhatsApp.</p></div></article></div></section>
         <section className="benefits" id="beneficios"><div className="benefits-copy"><h2>Menos mensajes para aclarar. Más tiempo para vender.</h2><p>No reemplazamos tu manera de trabajar. Ordenamos la parte que hoy te hace perder tiempo.</p><button className="primary" onClick={() => setScreen("auth")}>Empezar gratis</button></div><div className="benefit-list"><article><span><FlowIcon type="repeat"/></span><div><h3>Pedidos frecuentes, más simples</h3><p>Tus clientes encuentran la lista vigente y vuelven a pedir sin esperar una respuesta.</p></div></article><article><span><FlowIcon type="price"/></span><div><h3>El precio correcto, a la vista</h3><p>Cada actualización reemplaza la lista anterior en el mismo enlace.</p></div></article><article><span><FlowIcon type="refresh"/></span><div><h3>Tu Excel sigue mandando</h3><p>Cuando algo cambia, importás el archivo nuevo y seguís trabajando.</p></div></article></div></section>
-        <section className="pricing" id="precios"><div className="pricing-intro"><h2>Empezá con tu lista.<br/>Crecé sin comisiones.</h2><div><p>Probá todas las funciones durante 14 días, sin tarjeta. Después elegís el plan que acompaña a tu negocio.</p><div className="billing-toggle" aria-label="Período de facturación"><button className={!annualPricing ? "active" : ""} onClick={() => setAnnualPricing(false)}>Mensual</button><button className={annualPricing ? "active" : ""} onClick={() => setAnnualPricing(true)}>Anual <span>2 meses gratis</span></button></div></div><div className="pricing-promises"><span>Cancelás cuando querés</span><span>Sin comisión por venta</span></div></div><div className="pricing-plans"><article><div><h3>Simple</h3><p>Para empezar a recibir pedidos sin cambiar tu forma de trabajar.</p></div><div className="price"><strong>{annualPricing ? "$129.000" : "$12.900"}</strong><span>ARS / {annualPricing ? "año" : "mes"}</span></div><ul><li>Hasta 300 productos</li><li>Importación desde Excel</li><li>Catálogo con imágenes y colores</li><li>Pedidos por WhatsApp</li></ul><button onClick={beginFreeTrial}>Probar 14 días</button></article><article className="recommended"><span className="plan-label">Para negocios en movimiento</span><div><h3>Negocio</h3><p>Para ordenar pedidos, clientes y la preparación diaria.</p></div><div className="price"><strong>{annualPricing ? "$249.000" : "$24.900"}</strong><span>ARS / {annualPricing ? "año" : "mes"}</span></div><ul><li>Productos e importaciones ilimitadas</li><li>Panel de pedidos y clientes</li><li>PDF para preparar cada pedido</li><li>Marca y catálogo personalizados</li></ul><button className="primary" onClick={beginFreeTrial}>Empezar gratis</button></article></div><small>La prueba no pide tarjeta. Elegís y pagás el plan recién cuando quieras continuar.</small></section>
+        <section className="pricing" id="precios"><div className="pricing-intro"><h2>Empezá con tu lista.<br/>Crecé sin comisiones.</h2><div><p>Probá todas las funciones durante 14 días, sin tarjeta. Después elegís el plan que acompaña a tu negocio.</p><div className="billing-toggle" aria-label="Período de facturación"><button className={!annualPricing ? "active" : ""} onClick={() => setAnnualPricing(false)}>Mensual</button><button className={annualPricing ? "active" : ""} onClick={() => setAnnualPricing(true)}>Anual <span>2 meses gratis</span></button></div></div><div className="pricing-promises"><span>Cancelás cuando querés</span><span>Sin comisión por venta</span></div></div><div className="pricing-plans"><article><div><h3>Simple</h3><p>Para empezar a recibir pedidos sin cambiar tu forma de trabajar.</p></div><div className="price"><strong>{annualPricing ? "$129.000" : "$12.900"}</strong><span>ARS / {annualPricing ? "año" : "mes"}</span></div><ul><li>1 catálogo y hasta 300 productos</li><li>Importación desde Excel</li><li>Catálogo con imágenes y colores</li><li>Pedidos por WhatsApp</li></ul><button onClick={beginFreeTrial}>Probar 14 días</button></article><article className="recommended"><span className="plan-label">Para negocios en movimiento</span><div><h3>Negocio</h3><p>Para ordenar pedidos, clientes y la preparación diaria.</p></div><div className="price"><strong>{annualPricing ? "$249.000" : "$24.900"}</strong><span>ARS / {annualPricing ? "año" : "mes"}</span></div><ul><li>Hasta 3 catálogos</li><li>Productos e importaciones ilimitadas</li><li>Panel de pedidos y clientes</li><li>PDF para preparar cada pedido</li></ul><button className="primary" onClick={beginFreeTrial}>Empezar gratis</button></article></div><small>La prueba no pide tarjeta. Elegís y pagás el plan recién cuando quieras continuar.</small></section>
         <section className="final-cta"><h2>Si ya tenés un Excel,<br/>ya podés empezar.</h2><p>Creá tu cuenta y convertí tu lista en un catálogo compartible.</p><button className="primary hero-primary" onClick={() => setScreen("auth")}>Crear mi catálogo <span>→</span></button></section>
         <footer><div><button className="landing-brand" aria-label="Ir al inicio" onClick={goToHome}><LogoMark /> PasáLista</button><p>Tu Excel, listo para tomar pedidos.</p></div><nav className="legal-links" aria-label="Información legal"><a href="/terminos">Términos</a><a href="/privacidad">Privacidad</a><a href="/cancelacion">Cancelación</a><a href="/baja">BOTÓN DE BAJA DE SERVICIO</a><a href="/arrepentimiento">BOTÓN DE ARREPENTIMIENTO</a></nav></footer>
       </main>
@@ -764,6 +789,7 @@ export default function Home() {
       {view === "business" ? (
         <section className="business-layout">
           <aside>
+            <div className="catalog-switcher"><label htmlFor="active-catalog">Catálogo activo</label><div><select id="active-catalog" value={activeCatalogId ?? ""} onChange={(event) => { setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setNotice(""); setPendingImport(null); setPendingMapping(null); setJustPublished(false); setOnboardingStep(1); setActiveCatalogId(Number(event.target.value)); }}>{catalogs.map((catalog) => <option key={catalog.id} value={catalog.id}>{catalog.name}</option>)}</select><button type="button" aria-label="Crear otro catálogo" disabled={catalogs.length >= 3} onClick={() => canUseNegocio ? setNewCatalogOpen((open) => !open) : openUpgrade()}>+</button></div>{newCatalogOpen && <form onSubmit={createCatalog}><input maxLength={80} value={newCatalogName} onChange={(event) => setNewCatalogName(event.target.value)} placeholder="Nombre del nuevo catálogo" aria-label="Nombre del nuevo catálogo" /><div><button type="button" onClick={() => { setNewCatalogOpen(false); setNewCatalogName(""); }}>Cancelar</button><button className="primary" disabled={saving} type="submit">{saving ? "Creando…" : "Crear"}</button></div></form>}<small>{catalogs.length}/3 catálogos · Plan Negocio</small></div>
             <small className="nav-label">GESTIÓN</small>
             <button data-icon="▦" className={section === "catalog" ? "active" : ""} onClick={() => setSection("catalog")}>Catálogo</button>
             <button data-icon="↗" className={section === "orders" ? "active" : ""} onClick={() => canUseNegocio ? setSection("orders") : openUpgrade()}>Pedidos {!canUseNegocio && <span className="nav-lock" aria-label="Requiere plan Negocio">Negocio</span>}{canUseNegocio && orders > 0 && <i>{orders}</i>}</button>
@@ -800,7 +826,7 @@ export default function Home() {
             </> : section === "billing" ? <>
               <div className="billing-heading"><div><h1>Plan y facturación</h1><p>Tu prueba y tu suscripción, en un solo lugar.</p></div><div className="billing-toggle" aria-label="Período de facturación"><button disabled={paidPlanActive} className={!billingAnnual ? "active" : ""} onClick={() => setAnnualPricing(false)}>Mensual</button><button disabled={paidPlanActive} className={billingAnnual ? "active" : ""} onClick={() => setAnnualPricing(true)}>Anual <span>2 meses gratis</span></button></div></div>
               <section className={`billing-status ${trialActive ? "trial" : paidPlanActive ? "paid" : "expired"}`}><div><span>{trialActive ? "Prueba completa" : paidPlanActive ? `Plan ${activeBilling.plan === "negocio" ? "Negocio" : "Simple"}` : "Prueba finalizada"}</span><h2>{trialActive ? `Te quedan ${trialDaysLeft} días con todo habilitado` : paidPlanActive ? "Tu suscripción está activa" : "Elegí cómo querés continuar"}</h2><p>{trialActive ? "No cargamos ninguna tarjeta. Cuando termine la prueba, solo se cobrará si elegís un plan." : paidPlanActive ? `Facturación ${activeBilling.billingCycle === "annual" ? "anual" : "mensual"}${activeBilling.currentPeriodEnd ? ` · próximo período ${new Intl.DateTimeFormat("es-AR", { day:"numeric", month:"long" }).format(new Date(activeBilling.currentPeriodEnd))}` : ""}.` : "Tu catálogo sigue guardado. Contratá un plan para volver a habilitar las funciones del panel."}</p></div><strong>{trialActive ? "Sin tarjeta" : paidPlanActive ? "Activo" : "En pausa"}</strong></section>
-              <section className="billing-compare"><header><div><h2>Elegí el plan que acompaña tu operación</h2><p>{paidPlanActive ? "Tu ciclo actual se conserva al cambiar de plan. No cobramos comisión por venta." : "Podés cambiar de plan más adelante. No cobramos comisión por venta."}</p></div></header><div className="billing-plan-row"><div><h3>Simple</h3><p>El catálogo esencial para recibir pedidos.</p></div><div className="billing-plan-price"><strong>{billingAnnual ? "$129.000" : "$12.900"}</strong><span>ARS / {billingAnnual ? "año" : "mes"}</span></div><ul><li>Hasta 300 productos</li><li>Excel y catálogo compartible</li><li>Pedidos por WhatsApp</li></ul><button disabled={saving || paidPlanActive} onClick={() => startSubscription("simple")}>{paidPlanActive && activeBilling.plan === "simple" ? "Plan actual" : paidPlanActive ? "Disponible al renovar" : saving ? "Abriendo…" : "Elegir Simple"}</button></div><div className="billing-plan-row featured"><div><span>Más completo</span><h3>Negocio</h3><p>Para que el equipo venda, prepare y siga cada pedido.</p></div><div className="billing-plan-price"><strong>{billingAnnual ? "$249.000" : "$24.900"}</strong><span>ARS / {billingAnnual ? "año" : "mes"}</span></div><ul><li>Productos ilimitados</li><li>Pedidos y clientes en el panel</li><li>PDF de preparación</li><li>Marca personalizada</li></ul><button className="primary" disabled={saving || (paidPlanActive && activeBilling.plan === "negocio")} onClick={() => startSubscription("negocio")}>{paidPlanActive && activeBilling.plan === "negocio" ? "Plan actual" : saving ? "Actualizando…" : paidPlanActive && activeBilling.plan === "simple" ? "Pasar a Negocio" : "Elegir Negocio"}</button></div></section>
+              <section className="billing-compare"><header><div><h2>Elegí el plan que acompaña tu operación</h2><p>{paidPlanActive ? "Tu ciclo actual se conserva al cambiar de plan. No cobramos comisión por venta." : "Podés cambiar de plan más adelante. No cobramos comisión por venta."}</p></div></header><div className="billing-plan-row"><div><h3>Simple</h3><p>El catálogo esencial para recibir pedidos.</p></div><div className="billing-plan-price"><strong>{billingAnnual ? "$129.000" : "$12.900"}</strong><span>ARS / {billingAnnual ? "año" : "mes"}</span></div><ul><li>1 catálogo y hasta 300 productos</li><li>Excel y catálogo compartible</li><li>Pedidos por WhatsApp</li></ul><button disabled={saving || paidPlanActive} onClick={() => startSubscription("simple")}>{paidPlanActive && activeBilling.plan === "simple" ? "Plan actual" : paidPlanActive ? "Disponible al renovar" : saving ? "Abriendo…" : "Elegir Simple"}</button></div><div className="billing-plan-row featured"><div><span>Más completo</span><h3>Negocio</h3><p>Para que el equipo venda, prepare y siga cada pedido.</p></div><div className="billing-plan-price"><strong>{billingAnnual ? "$249.000" : "$24.900"}</strong><span>ARS / {billingAnnual ? "año" : "mes"}</span></div><ul><li>Hasta 3 catálogos</li><li>Productos ilimitados</li><li>Pedidos y clientes en el panel</li><li>PDF de preparación</li></ul><button className="primary" disabled={saving || (paidPlanActive && activeBilling.plan === "negocio")} onClick={() => startSubscription("negocio")}>{paidPlanActive && activeBilling.plan === "negocio" ? "Plan actual" : saving ? "Actualizando…" : paidPlanActive && activeBilling.plan === "simple" ? "Pasar a Negocio" : "Elegir Negocio"}</button></div></section>
               <p className="billing-footnote">Mercado Pago se abre únicamente al contratar. La prueba gratuita no genera cobros automáticos. <a href="/baja">Solicitar la baja</a></p>
             </> : <>
               <div className="settings-heading"><div><h1>Configuración</h1><p>Lo que ven tus clientes y cómo recibís sus pedidos.</p></div><button className="preview-link" onClick={() => setView("customer")}>Ver catálogo</button></div>

@@ -33,7 +33,9 @@ export async function POST(request: Request) {
     if (!response.ok) return Response.json({ ok: false }, { status: 502 });
     const subscription = await response.json() as { id: string; status?: string; next_payment_date?: string };
     const mapped = subscription.status === "authorized" ? "authorized" : subscription.status === "cancelled" ? "cancelled" : subscription.status === "paused" ? "paused" : "pending";
-    await getDb().update(businesses).set({ subscriptionStatus: mapped, currentPeriodEnd: subscription.next_payment_date ?? null }).where(eq(businesses.mpPreapprovalId, subscription.id));
+    const db = getDb();
+    const [accountBusiness] = await db.select({ ownerUserId: businesses.ownerUserId }).from(businesses).where(eq(businesses.mpPreapprovalId, subscription.id)).limit(1);
+    if (accountBusiness?.ownerUserId) await db.update(businesses).set({ subscriptionStatus: mapped, currentPeriodEnd: subscription.next_payment_date ?? null }).where(eq(businesses.ownerUserId, accountBusiness.ownerUserId));
     return Response.json({ ok: true });
   } catch (error) {
     console.error("Billing webhook failed", error);

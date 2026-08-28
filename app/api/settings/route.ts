@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { businesses } from "@/db/schema";
 import { authenticatedUserId } from "../auth";
 import { devPlanFrom } from "../dev-plan";
+import { ownedBusiness } from "../owned-business";
 
 const hexColor = /^#[0-9a-f]{6}$/i;
 const slugFrom = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "mi-negocio";
@@ -20,7 +21,7 @@ export async function PATCH(request: Request) {
   if (!hexColor.test(brandColor)) return Response.json({ error: "Elegí un color válido para tu marca." }, { status: 400 });
 
   const db = getDb();
-  const [currentBusiness] = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).limit(1);
+  const currentBusiness = await ownedBusiness(request);
   if (!currentBusiness) return Response.json({ error: "No encontramos tu empresa." }, { status: 404 });
   const devPlan = devPlanFrom(request);
   const trialActive = devPlan === "trial" || (!devPlan && currentBusiness.subscriptionStatus !== "authorized" && Boolean(currentBusiness.trialEndsAt) && new Date(currentBusiness.trialEndsAt!).getTime() > Date.now());

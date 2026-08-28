@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         const causes = upgradeData.cause?.map((cause) => cause.description).filter(Boolean).join(" · ");
         throw new Error([upgradeData.message || upgradeData.error || "Mercado Pago rechazó el cambio de plan.", causes].filter(Boolean).join(" — "));
       }
-      await db.update(businesses).set({ plan: "negocio", subscriptionStatus: "authorized" }).where(eq(businesses.id, business.id));
+      await db.update(businesses).set({ plan: "negocio", subscriptionStatus: "authorized" }).where(eq(businesses.ownerUserId, userId));
       return Response.json({ upgraded: true, plan: "negocio", billingCycle: currentCycle });
     }
     const isTestMode = accessToken.startsWith("TEST-");
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       console.error("Mercado Pago checkout response", { status: response.status, error: data.error, message: data.message, cause: data.cause });
       throw new Error([data.message || data.error || "Mercado Pago rechazó la solicitud.", causes].filter(Boolean).join(" — "));
     }
-    await db.update(businesses).set({ plan: payload.plan, billingCycle: cycle, subscriptionStatus: "pending", mpPreapprovalId: data.id }).where(eq(businesses.id, business.id));
+    await db.update(businesses).set({ plan: payload.plan, billingCycle: cycle, subscriptionStatus: "pending", mpPreapprovalId: data.id }).where(eq(businesses.ownerUserId, userId));
     return Response.json({ checkoutUrl: data.init_point });
   } catch (error) {
     console.error("Billing checkout failed", error);

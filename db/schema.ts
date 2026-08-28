@@ -21,7 +21,7 @@ export const businesses = sqliteTable("businesses", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("idx_businesses_slug").on(table.slug),
-  uniqueIndex("idx_businesses_owner_user").on(table.ownerUserId),
+  index("idx_businesses_owner_user").on(table.ownerUserId),
 ]);
 
 export const products = sqliteTable("products", {

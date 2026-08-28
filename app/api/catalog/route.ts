@@ -10,7 +10,8 @@ async function requireBusiness(request: Request) {
   const userId = await authenticatedUserId(request);
   if (!userId) return null;
   const db = getDb();
-  let [business] = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).limit(1);
+  let owned = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).orderBy(asc(businesses.id));
+  let business = owned[0];
   if (!business) {
     const [legacyBusiness] = await db.select().from(businesses).where(isNull(businesses.ownerUserId)).limit(1);
     if (legacyBusiness) {
@@ -19,7 +20,10 @@ async function requireBusiness(request: Request) {
       const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
       [business] = await db.insert(businesses).values({ ownerUserId: userId, name: "Mi distribuidora", slug: `catalogo-${userId.slice(-8).toLowerCase()}`, trialEndsAt }).returning();
     }
+    owned = [business];
   }
+  const requestedId = Number(request.headers.get("x-pasalista-catalog-id"));
+  business = owned.find((item) => item.id === requestedId) ?? business;
   if (!business.trialEndsAt) {
     const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
     [business] = await db.update(businesses).set({ trialEndsAt }).where(eq(businesses.id, business.id)).returning();
@@ -37,7 +41,8 @@ export async function GET(request: Request) {
       db.select().from(imports).where(eq(imports.businessId, business.id)).orderBy(desc(imports.createdAt), desc(imports.id)).limit(1),
       db.select({ count: sql<number>`count(*)` }).from(orders).where(eq(orders.businessId, business.id)),
     ]);
-    return Response.json({ business, products: catalogProducts, lastImport: lastImport[0] ?? null, orders: Number(orderCount[0]?.count ?? 0) });
+    const catalogs = await db.select({ id: businesses.id, name: businesses.name, slug: businesses.slug }).from(businesses).where(eq(businesses.ownerUserId, business.ownerUserId)).orderBy(asc(businesses.id));
+    return Response.json({ business, catalogs, products: catalogProducts, lastImport: lastImport[0] ?? null, orders: Number(orderCount[0]?.count ?? 0) });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "No pudimos cargar el catálogo." }, { status: 500 });
   }

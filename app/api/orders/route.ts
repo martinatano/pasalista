@@ -1,15 +1,11 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { businesses, orderItems, orders, products } from "@/db/schema";
-import { authenticatedUserId } from "../auth";
+import { orderItems, orders, products } from "@/db/schema";
 import { devPlanFrom } from "../dev-plan";
+import { ownedBusiness as selectedOwnedBusiness } from "../owned-business";
 
 async function ownedBusiness(request: Request) {
-  const userId = await authenticatedUserId(request);
-  if (!userId) return null;
-  const db = getDb();
-  const [business] = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).limit(1);
-  return business ?? null;
+  return selectedOwnedBusiness(request);
 }
 
 function hasNegocioAccess(request: Request, business: Awaited<ReturnType<typeof ownedBusiness>>) {
