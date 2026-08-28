@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 type Product = { code: string; name: string; detail: string; category: string; price: number; stock?: number | null; emoji: string; imageKey?: string | null };
@@ -38,9 +38,11 @@ export default function PublicCatalog({ slug }: { slug: string }) {
   const [notes, setNotes] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [notice, setNotice] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
   const [loading, setLoading] = useState(!isDemo);
   const [sending, setSending] = useState(false);
   const [paused, setPaused] = useState(false);
+  const customerNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isDemo) {
@@ -64,7 +66,7 @@ export default function PublicCatalog({ slug }: { slug: string }) {
   const total = products.reduce((sum, product) => sum + (quantities[product.code] ?? 0) * product.price, 0);
   const selectedProducts = products.filter((product) => (quantities[product.code] ?? 0) > 0);
   const delivery = [business?.deliveryZones, business?.deliveryDays].filter(Boolean).join(" · ") || "Entrega a coordinar";
-  function change(code: string, delta: number) { setQuantities((current) => ({ ...current, [code]: Math.max(0, (current[code] ?? 0) + delta) })); setNotice(""); }
+  function change(code: string, delta: number) { setQuantities((current) => ({ ...current, [code]: Math.max(0, (current[code] ?? 0) + delta) })); setNotice(""); setCheckoutError(""); }
 
   useEffect(() => {
     if (!showCheckout) return;
@@ -74,9 +76,14 @@ export default function PublicCatalog({ slug }: { slug: string }) {
   }, [showCheckout]);
 
   async function sendOrder() {
-    if (!business || !count) return setNotice("Agregá al menos un producto al pedido.");
-    if (customerName.trim().length < 2) return setNotice("Ingresá tu nombre o el de tu comercio.");
-    if (business.minimumOrder > 0 && total < business.minimumOrder) return setNotice(`Te faltan ${pesos.format(business.minimumOrder - total)} para llegar al pedido mínimo.`);
+    if (!business || !count) return setCheckoutError("Agregá al menos un producto al pedido.");
+    if (customerName.trim().length < 2) {
+      setCheckoutError("Completá el nombre o comercio para poder hacer el pedido.");
+      customerNameRef.current?.focus();
+      return;
+    }
+    if (business.minimumOrder > 0 && total < business.minimumOrder) return setCheckoutError(`Te faltan ${pesos.format(business.minimumOrder - total)} para llegar al pedido mínimo de ${pesos.format(business.minimumOrder)}.`);
+    setCheckoutError("");
     if (isDemo) {
       setShowCheckout(false);
       setNotice("¡Demo completada! En un catálogo real, ahora se abriría WhatsApp con el pedido listo para enviar.");
@@ -114,7 +121,7 @@ export default function PublicCatalog({ slug }: { slug: string }) {
       <div className="category-row">{categories.map((item) => <button className={category === item ? "active" : ""} key={item} onClick={() => { setCategory(item); setPage(1); }}>{item}</button>)}</div>
       <div className="product-grid">{pagedProducts.map((product) => { const quantity = quantities[product.code] ?? 0; const image = product.imageKey ? `/api/product-image?slug=${encodeURIComponent(slug)}&code=${encodeURIComponent(product.code)}` : ""; return <article className={`product ${product.stock === 0 ? "sold-out" : ""}`} key={product.code}><span className="product-emoji">{image ? <img src={image} alt={product.name} /> : product.emoji}</span><div><b>{product.name}</b><small>{product.detail}{product.detail ? " · " : ""}{product.code}</small><strong>{pesos.format(product.price)}</strong></div>{product.stock === 0 ? <em>Sin stock</em> : <div className="quantity"><button onClick={() => change(product.code, -1)} aria-label={`Quitar ${product.name}`}>−</button><span>{quantity}</span><button onClick={() => change(product.code, 1)} aria-label={`Agregar ${product.name}`}>+</button></div>}</article>; })}</div>
       {visible.length > productsPerPage && <nav className="catalog-pagination" aria-label="Páginas del catálogo"><span>Mostrando {(page - 1) * productsPerPage + 1}–{Math.min(page * productsPerPage, visible.length)} de {visible.length}</span><div><button disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button><b>{page} de {pageCount}</b><button disabled={page === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Siguiente</button></div></nav>}
-      {!visible.length && <div className="empty">No encontramos productos con esa búsqueda.</div>}{showCheckout && count > 0 && <section className="checkout-panel"><header><div><h2>Revisá tu pedido</h2><p>Podés cambiar cantidades antes de enviarlo.</p></div><button onClick={() => setShowCheckout(false)} aria-label="Cerrar revisión">Cerrar</button></header><div className="checkout-items">{selectedProducts.map((product) => <div key={product.code}><span>{quantities[product.code]}×</span><div><b>{product.name}</b><small>{product.code}</small></div><strong>{pesos.format(product.price * quantities[product.code])}</strong></div>)}</div><div className="checkout-fields"><label>Nombre o comercio *<input required maxLength={100} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Ej. Almacén Don José" /></label><label>Teléfono<input inputMode="tel" maxLength={30} value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Ej. 11 2345 6789" /></label><label className="wide">Dirección de entrega<input maxLength={180} value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} placeholder="Calle, número y localidad" /></label><label className="wide">Observaciones<textarea maxLength={500} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Horario, indicaciones o productos a reemplazar…" /></label></div><footer><span>Total</span><strong>{pesos.format(total)}</strong><button disabled={sending} onClick={sendOrder}>{sending ? "Preparando…" : "Confirmar y abrir WhatsApp"}</button></footer></section>}<div className="cart-bar"><div><b>{count} productos · {pesos.format(total)}</b><small>{delivery}</small></div><button disabled={sending || count === 0} onClick={() => setShowCheckout(true)}>Revisar pedido</button></div>
+      {!visible.length && <div className="empty">No encontramos productos con esa búsqueda.</div>}{showCheckout && count > 0 && <section className="checkout-panel" role="dialog" aria-modal="true" aria-labelledby="public-checkout-title"><header><div><h2 id="public-checkout-title">Revisá tu pedido</h2><p>Confirmá los productos y completá tus datos.</p></div><button onClick={() => { setShowCheckout(false); setCheckoutError(""); }} aria-label="Cerrar revisión">Cerrar</button></header><div className="checkout-items">{selectedProducts.map((product) => <div key={product.code}><span>{quantities[product.code]}×</span><div><b>{product.name}</b><small>{product.code}</small></div><strong>{pesos.format(product.price * quantities[product.code])}</strong></div>)}</div><div className="checkout-fields"><label>Nombre o comercio *<input ref={customerNameRef} required minLength={2} maxLength={100} aria-invalid={checkoutError.includes("nombre") || undefined} aria-describedby={checkoutError ? "public-checkout-error" : undefined} value={customerName} onChange={(event) => { setCustomerName(event.target.value); if (checkoutError) setCheckoutError(""); }} placeholder="Ej. Almacén Don José" /></label><label>Teléfono<input inputMode="tel" maxLength={30} value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Ej. 11 2345 6789" /></label><label className="wide">Dirección de entrega<input maxLength={180} value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} placeholder="Calle, número y localidad" /></label><label className="wide">Observaciones<textarea maxLength={500} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Horario, indicaciones o productos a reemplazar…" /></label>{checkoutError && <p className="checkout-error wide" id="public-checkout-error" role="alert">{checkoutError}</p>}</div><footer><span>Total</span><strong>{pesos.format(total)}</strong><button disabled={sending} onClick={sendOrder}>{sending ? "Preparando…" : "Confirmar y abrir WhatsApp"}</button></footer></section>}<div className="cart-bar"><div><b>{count} productos · {pesos.format(total)}</b><small>{business.minimumOrder > 0 && total < business.minimumOrder ? `Faltan ${pesos.format(business.minimumOrder - total)} para el mínimo` : delivery}</small></div><button disabled={sending || count === 0} onClick={() => { setCheckoutError(""); setShowCheckout(true); }}>Revisar pedido</button></div>
     </section><footer className="public-footer">Catálogo creado con <b>PasáLista</b> · <a href="/privacidad">Privacidad</a>{isDemo && <> · <Link href="/">Creá el tuyo</Link></>}</footer>
   </main>;
 }
