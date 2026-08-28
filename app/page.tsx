@@ -44,6 +44,35 @@ function numberFrom(value: unknown) {
   if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, "")) || 0;
   return Number(raw) || 0;
 }
+
+function readableCategory(value: unknown) {
+  return String(value ?? "")
+    .replace(/^\s*productos?(?:\s+de)?\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSectionRow(row: unknown[], mapping: ColumnMapping) {
+  if (mapping.name == null || mapping.price == null) return false;
+  const name = String(row[mapping.name] ?? "").trim();
+  const rawPrice = String(row[mapping.price] ?? "").trim();
+  if (!name || numberFrom(row[mapping.price]) > 0) return false;
+  return normalize(rawPrice).includes("precio");
+}
+
+function inferredDetail(row: unknown[], headers: string[], mapping: ColumnMapping) {
+  if (mapping.detail != null) return String(row[mapping.detail] ?? "").trim();
+  if (mapping.name == null || mapping.price == null) return "";
+  const reserved = new Set(Object.values(mapping).filter((index): index is number => index != null));
+  const start = Math.min(mapping.name, mapping.price) + 1;
+  const end = Math.max(mapping.name, mapping.price);
+  return row.slice(start, end).map((cell, offset) => ({
+    value: String(cell ?? "").replace(/\s+/g, " ").trim(),
+    index: start + offset,
+  })).filter(({ value, index }) => value && !reserved.has(index) && /^Columna \d+$/.test(headers[index] ?? ""))
+    .map(({ value }) => value)
+    .join(" · ");
+}
 function iconFor(name: string, category: string) {
   const text = normalize(`${name} ${category}`);
   if (text.includes("huevo")) return "🥚";
@@ -351,20 +380,30 @@ export default function Home() {
       setNotice("Elegí qué columnas contienen el producto y el precio.");
       return;
     }
+    const firstHeaderCategory = mapping.name != null && normalize(headers[mapping.name]).startsWith("productos")
+      ? readableCategory(headers[mapping.name])
+      : "";
+    let inferredCategory = firstHeaderCategory || "General";
     const parsedRows = rows.map((row, index) => {
       const name = String(row[mapping.name!] ?? "").trim();
-      const categoryValue = mapping.category != null ? String(row[mapping.category] ?? "General").trim() : "General";
+      if (mapping.category == null && isSectionRow(row, mapping)) {
+        const sectionName = [name, ...row.slice(mapping.name! + 1, mapping.price!).map((cell) => String(cell ?? "").trim())]
+          .filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+        inferredCategory = readableCategory(sectionName) || inferredCategory;
+        return null;
+      }
+      const categoryValue = mapping.category != null ? String(row[mapping.category] ?? "General").trim() : inferredCategory;
       return {
         code: mapping.code != null && row[mapping.code] ? String(row[mapping.code]).trim() : `${normalize(name).slice(0, 10).toUpperCase()}-${index + 1}`,
         name,
-        detail: mapping.detail != null ? String(row[mapping.detail] ?? "").trim() : "",
+        detail: inferredDetail(row, headers, mapping),
         category: categoryValue || "General",
         price: numberFrom(row[mapping.price!]),
         stock: mapping.stock != null && String(row[mapping.stock] ?? "").trim() !== "" ? numberFrom(row[mapping.stock]) : undefined,
         emoji: iconFor(name, categoryValue),
         imageDataUrl: images[index] ?? null,
       } satisfies Product;
-    }).filter((product) => product.name && product.price > 0);
+    }).filter((product): product is Product => Boolean(product?.name && product.price > 0));
     const usedCodes = new Set<string>();
     let adjustedCodes = 0;
     const parsed = parsedRows.map((product) => {
