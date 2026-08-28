@@ -196,6 +196,7 @@ button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid rgb
 
 .hero { background:radial-gradient(900px 500px at 82% -6%,#3a2413 0%,transparent 62%),var(--void); color:var(--cream); }
 .hero:after { border-color:#3d3020; }
+.hero-product { color:var(--ink); }
 .eyebrow { color:#ff9a5c; font-size:11px; letter-spacing:.14em; }
 .hero h1 { text-transform:uppercase; letter-spacing:-.01em; color:var(--cream); }
 .hero h1 em { color:var(--accent); }
