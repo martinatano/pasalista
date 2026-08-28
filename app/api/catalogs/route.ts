@@ -28,5 +28,5 @@ export async function POST(request: Request) {
   let suffix = 2;
   while ((await db.select({ id: businesses.id }).from(businesses).where(eq(businesses.slug, slug)).limit(1)).length) slug = `${baseSlug.slice(0, 56)}-${suffix++}`;
   const [business] = await db.insert(businesses).values({ ownerUserId: userId, name: name.slice(0, 80), slug, whatsapp: account.whatsapp, brandColor: account.brandColor, minimumOrder: 0, deliveryZones: account.deliveryZones, deliveryDays: account.deliveryDays, plan: account.plan, billingCycle: account.billingCycle, subscriptionStatus: account.subscriptionStatus, trialEndsAt: account.trialEndsAt, currentPeriodEnd: account.currentPeriodEnd }).returning();
-  return Response.json({ business: { id: business.id, name: business.name, slug: business.slug } }, { status: 201 });
+  return Response.json({ business: { id: business.id, name: business.name, slug: business.slug, isActive: business.isActive } }, { status: 201 });
 }

@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       db.select().from(imports).where(eq(imports.businessId, business.id)).orderBy(desc(imports.createdAt), desc(imports.id)).limit(1),
       db.select({ count: sql<number>`count(*)` }).from(orders).where(eq(orders.businessId, business.id)),
     ]);
-    const catalogs = await db.select({ id: businesses.id, name: businesses.name, slug: businesses.slug }).from(businesses).where(eq(businesses.ownerUserId, business.ownerUserId)).orderBy(asc(businesses.id));
+    const catalogs = await db.select({ id: businesses.id, name: businesses.name, slug: businesses.slug, isActive: businesses.isActive }).from(businesses).where(eq(businesses.ownerUserId, business.ownerUserId)).orderBy(asc(businesses.id));
     return Response.json({ business, catalogs, products: catalogProducts, lastImport: lastImport[0] ?? null, orders: Number(orderCount[0]?.count ?? 0) });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "No pudimos cargar el catálogo." }, { status: 500 });
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
     const subscriptionActive = devPlan === "simple" || devPlan === "negocio" || devPlan === "empresa" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive));
     const negocioActive = devPlan === "negocio" || devPlan === "empresa" || (!devPlan && (business.subscriptionStatus === "authorized" || paidPeriodActive) && (business.plan === "negocio" || business.plan === "empresa"));
     if (!trialActive && !subscriptionActive) return Response.json({ error: "Tu prueba terminó. Elegí un plan para volver a publicar el catálogo." }, { status: 403 });
+    if (!trialActive && !business.isActive) return Response.json({ error: "Este catálogo está guardado pero pausado por tu plan. Pasá a Negocio o Empresa para reactivarlo." }, { status: 403 });
     if (!trialActive && !negocioActive && clean.length > 300) return Response.json({ error: "El plan Simple admite hasta 300 productos. Elegí Negocio para publicar la lista completa." }, { status: 403 });
     const previousProducts = await db.select({ code: products.code, imageKey: products.imageKey }).from(products).where(eq(products.businessId, business.id));
     const previousImageByCode = new Map(previousProducts.flatMap((item) => item.imageKey ? [[item.code.toLocaleLowerCase("es"), item.imageKey] as const] : []));

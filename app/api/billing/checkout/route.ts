@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { businesses } from "@/db/schema";
 import { authenticatedUserId } from "../../auth";
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const userId = await authenticatedUserId(request);
     if (!userId) return Response.json({ error: "Iniciá sesión para elegir un plan." }, { status: 401 });
     if (!process.env.MERCADOPAGO_ACCESS_TOKEN) return Response.json({ error: "Los cobros todavía no están habilitados." }, { status: 503 });
-    const payload = await request.json() as { plan?: keyof typeof plans; cycle?: "monthly" | "annual"; email?: string };
+    const payload = await request.json() as { plan?: keyof typeof plans; cycle?: "monthly" | "annual"; email?: string; catalogId?: number };
     const plan = payload.plan ? plans[payload.plan] : null;
     const cycle = payload.cycle === "annual" ? "annual" : "monthly";
     const email = payload.email?.trim() ?? "";
@@ -23,6 +23,11 @@ export async function POST(request: Request) {
     const db = getDb();
     const [business] = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).limit(1);
     if (!business) return Response.json({ error: "Primero configurá tu negocio." }, { status: 404 });
+    const selectedCatalogId = payload.plan === "simple" && Number.isInteger(payload.catalogId) ? Number(payload.catalogId) : business.id;
+    if (payload.plan === "simple") {
+      const [selected] = await db.select({ id: businesses.id }).from(businesses).where(and(eq(businesses.ownerUserId, userId), eq(businesses.id, selectedCatalogId))).limit(1);
+      if (!selected) return Response.json({ error: "Elegí cuál catálogo querés mantener publicado con Simple." }, { status: 400 });
+    }
     if (business.subscriptionStatus === "authorized" && business.mpPreapprovalId) {
       if (business.plan === payload.plan) return Response.json({ error: "Ese ya es tu plan actual." }, { status: 409 });
       const currentPlan = plans[business.plan as keyof typeof plans];
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
         const causes = upgradeData.cause?.map((cause) => cause.description).filter(Boolean).join(" · ");
         throw new Error([upgradeData.message || upgradeData.error || "Mercado Pago rechazó el cambio de plan.", causes].filter(Boolean).join(" — "));
       }
-      await db.update(businesses).set({ plan: payload.plan, subscriptionStatus: "authorized" }).where(eq(businesses.ownerUserId, userId));
+      await db.update(businesses).set({ plan: payload.plan, subscriptionStatus: "authorized", isActive: true }).where(eq(businesses.ownerUserId, userId));
       return Response.json({ upgraded: true, plan: payload.plan, billingCycle: currentCycle });
     }
     const isTestMode = accessToken.startsWith("TEST-");
@@ -52,7 +57,12 @@ export async function POST(request: Request) {
       console.error("Mercado Pago checkout response", { status: response.status, error: data.error, message: data.message, cause: data.cause });
       throw new Error([data.message || data.error || "Mercado Pago rechazó la solicitud.", causes].filter(Boolean).join(" — "));
     }
-    await db.update(businesses).set({ plan: payload.plan, billingCycle: cycle, subscriptionStatus: "pending", mpPreapprovalId: data.id }).where(eq(businesses.ownerUserId, userId));
+    if (payload.plan === "simple") {
+      await db.update(businesses).set({ plan: payload.plan, billingCycle: cycle, subscriptionStatus: "pending", mpPreapprovalId: data.id, isActive: false }).where(eq(businesses.ownerUserId, userId));
+      await db.update(businesses).set({ isActive: true }).where(and(eq(businesses.ownerUserId, userId), eq(businesses.id, selectedCatalogId)));
+    } else {
+      await db.update(businesses).set({ plan: payload.plan, billingCycle: cycle, subscriptionStatus: "pending", mpPreapprovalId: data.id, isActive: true }).where(eq(businesses.ownerUserId, userId));
+    }
     return Response.json({ checkoutUrl: data.init_point });
   } catch (error) {
     console.error("Billing checkout failed", error);

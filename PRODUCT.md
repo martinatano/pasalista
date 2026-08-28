@@ -31,6 +31,7 @@ La empresa inicia sesión desde cualquier dispositivo, administra su catálogo y
 - La carga debe sentirse mínima y no obligar a reconstruir manualmente el inventario.
 - Los clientes del catálogo público no deben necesitar una cuenta.
 - Una empresa puede administrar hasta tres catálogos en Negocio y hasta veinte en Empresa.
+- La prueba de 14 días habilita las funciones y el límite de Negocio. Al pasar a Simple, el usuario elige un catálogo publicado y los demás quedan guardados pero pausados.
 - El archivo original no se almacena en el MVP; se guardan los datos procesados y el historial de importación.
 
 ## Brand Commitments

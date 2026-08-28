@@ -18,6 +18,7 @@ export const businesses = sqliteTable("businesses", {
   mpPreapprovalId: text("mp_preapproval_id"),
   trialEndsAt: text("trial_ends_at"),
   currentPeriodEnd: text("current_period_end"),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("idx_businesses_slug").on(table.slug),

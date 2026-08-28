@@ -4,12 +4,12 @@ import { businesses, orderItems, orders, products } from "@/db/schema";
 import { devPlanFrom } from "../dev-plan";
 import { bodyTooLarge, rateLimit, rateLimitResponse } from "../security";
 
-function catalogActive(request: Request, business: { subscriptionStatus: string; trialEndsAt: string | null; currentPeriodEnd: string | null }) {
+function catalogActive(request: Request, business: { subscriptionStatus: string; trialEndsAt: string | null; currentPeriodEnd: string | null; isActive: boolean }) {
   const devPlan = devPlanFrom(request);
   if (devPlan) return devPlan !== "expired";
   const trialActive = business.subscriptionStatus !== "authorized" && Boolean(business.trialEndsAt) && new Date(business.trialEndsAt!).getTime() > Date.now();
   const paidPeriodActive = Boolean(business.currentPeriodEnd) && new Date(business.currentPeriodEnd!).getTime() > Date.now();
-  return trialActive || business.subscriptionStatus === "authorized" || paidPeriodActive;
+  return trialActive || (business.isActive && (business.subscriptionStatus === "authorized" || paidPeriodActive));
 }
 
 export async function GET(request: Request) {
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     const slug = new URL(request.url).searchParams.get("slug")?.trim();
     if (!slug) return Response.json({ error: "Falta el enlace del catálogo." }, { status: 400 });
     const db = getDb();
-    const [business] = await db.select({ id: businesses.id, name: businesses.name, slug: businesses.slug, whatsapp: businesses.whatsapp, brandColor: businesses.brandColor, minimumOrder: businesses.minimumOrder, deliveryZones: businesses.deliveryZones, deliveryDays: businesses.deliveryDays, logoKey: businesses.logoKey, subscriptionStatus: businesses.subscriptionStatus, trialEndsAt: businesses.trialEndsAt, currentPeriodEnd: businesses.currentPeriodEnd }).from(businesses).where(eq(businesses.slug, slug)).limit(1);
+    const [business] = await db.select({ id: businesses.id, name: businesses.name, slug: businesses.slug, whatsapp: businesses.whatsapp, brandColor: businesses.brandColor, minimumOrder: businesses.minimumOrder, deliveryZones: businesses.deliveryZones, deliveryDays: businesses.deliveryDays, logoKey: businesses.logoKey, subscriptionStatus: businesses.subscriptionStatus, trialEndsAt: businesses.trialEndsAt, currentPeriodEnd: businesses.currentPeriodEnd, isActive: businesses.isActive }).from(businesses).where(eq(businesses.slug, slug)).limit(1);
     if (!business) return Response.json({ error: "Este catálogo no existe." }, { status: 404 });
     if (!catalogActive(request, business)) return Response.json({ business, products: [], paused: true });
     const catalogProducts = await db.select({ code: products.code, name: products.name, detail: products.detail, category: products.category, price: products.price, stock: products.stock, emoji: products.emoji, imageKey: products.imageKey }).from(products).where(eq(products.businessId, business.id)).orderBy(asc(products.id));
