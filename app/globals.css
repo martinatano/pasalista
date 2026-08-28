@@ -235,3 +235,46 @@ button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid rgb
 
 @media(max-width:580px){ .reveal{padding:80px 20px} .reveal h2{font-size:32px} .reveal-mark{width:44px;height:44px;margin-bottom:20px} }
 @media(prefers-reduced-motion:reduce){ .hero-primary{animation:none} .reveal-mark{animation:none} }
+
+/* ============ Landing v3: el resto de la página entra en el mismo modo oscuro ============ */
+.landing-page { background:radial-gradient(1100px 620px at 88% -8%,#2a1408 0%,transparent 60%),var(--void); }
+
+.landing-page .how { background:transparent; }
+.landing-page .section-heading span { color:var(--accent); }
+.landing-page .section-heading h2 { color:var(--cream); }
+.landing-page .section-heading>p { color:var(--driftwood); }
+.landing-page .steps:before { border-color:#3d3020; }
+.landing-page .steps h3 { color:var(--cream); }
+.landing-page .steps p { color:var(--driftwood); }
+.landing-page .step-icon { border-color:var(--void); background:#2a1d13; color:#ff9a5c; }
+
+.landing-page .pricing-intro h2 { color:var(--cream); }
+.landing-page .pricing-intro>p,.landing-page .pricing-intro>div>p { color:var(--driftwood); }
+.landing-page .pricing-promises { color:var(--cream); }
+.landing-page .billing-toggle { background:#241a11; border:1px solid #3d3020; }
+.landing-page .billing-toggle button { color:var(--driftwood); }
+.landing-page .billing-toggle button.active { background:var(--void); color:var(--cream); }
+.landing-page .billing-toggle span { color:var(--accent); }
+.landing-page .pricing-plans { background:#1c130c; border-color:#3d3020; box-shadow:0 30px 80px rgba(0,0,0,.4); }
+.landing-page .pricing-plans article+article { border-left-color:#3d3020; }
+.landing-page .pricing-plans h3 { color:var(--cream); }
+.landing-page .pricing-plans article p { color:var(--driftwood); }
+.landing-page .price strong { color:var(--cream); }
+.landing-page .price span { color:#8a7a68; }
+.landing-page .pricing-plans ul { color:var(--driftwood); }
+.landing-page .pricing-plans button { background:transparent; border-color:#4a3b28; color:var(--cream); }
+.landing-page .pricing-plans button:hover { border-color:#6b5a44; background:rgba(255,255,255,.05); }
+.landing-page .pricing-plans .recommended { background:#241a11; }
+.landing-page .plan-label { background:var(--accent); color:#301207; }
+.landing-page .pricing>small { color:#8a7a68; }
+
+.landing-page .final-cta:before { background:#3d3020; }
+.landing-page .final-cta h2 { color:var(--cream); }
+.landing-page .final-cta p { color:var(--driftwood); }
+
+.landing-page footer { border-top-color:#3d3020; color:#8a7a68; }
+.landing-page footer .landing-brand { color:var(--cream); }
+.landing-page .legal-links a { color:#8a7a68; }
+.landing-page .legal-links a:hover { color:var(--cream); }
+.landing-page .consumer-shortcuts a { color:#6b5a44; }
+.landing-page .consumer-shortcuts a:hover { color:var(--cream); }
