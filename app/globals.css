@@ -186,6 +186,7 @@ button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid rgb
 
 /* ============ Landing v2: modo editorial oscuro, inspirado en Oryzo ============ */
 .landing-nav { background:var(--void); }
+.landing-nav:before { content:""; position:absolute; z-index:-1; top:0; bottom:0; left:50%; width:100vw; transform:translateX(-50%); background:var(--void); }
 .landing-nav:after { background:repeating-linear-gradient(90deg,var(--cork) 0 6px,transparent 6px 12px); height:1px; }
 .landing-nav .landing-brand { color:var(--cream); }
 .landing-nav .landing-brand span { background:var(--accent); }
@@ -195,6 +196,7 @@ button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid rgb
 .landing-nav .landing-actions .primary { box-shadow:none; }
 
 .hero { background:radial-gradient(900px 500px at 82% -6%,#3a2413 0%,transparent 62%),var(--void); color:var(--cream); }
+.hero:before { content:""; position:absolute; z-index:0; top:0; bottom:0; left:50%; width:100vw; transform:translateX(-50%); background:var(--void); }
 .hero:after { border-color:#3d3020; }
 .hero-product { color:var(--ink); }
 .eyebrow { color:#ff9a5c; font-size:11px; letter-spacing:.14em; }
