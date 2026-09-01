@@ -4,7 +4,7 @@ import { businesses } from "@/db/schema";
 import { authenticatedUserId } from "../../auth";
 import { bodyTooLarge, rateLimit, rateLimitResponse } from "../../security";
 
-const plans = { simple: { monthly: 12900, annual: 129000, reason: "PasáLista Simple", level: 1 }, negocio: { monthly: 24900, annual: 249000, reason: "PasáLista Negocio", level: 2 }, empresa: { monthly: 34000, annual: 340000, reason: "PasáLista Empresa", level: 3 } } as const;
+const plans = { simple: { monthly: 12900, annual: 129000, reason: "PasáLista Simple", level: 1 }, negocio: { monthly: 24900, annual: 249000, reason: "PasáLista Negocio", level: 2 }, empresa: { monthly: 34900, annual: 349000, reason: "PasáLista Empresa", level: 3 } } as const;
 
 export async function POST(request: Request) {
   try {
