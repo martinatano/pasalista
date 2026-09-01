@@ -12,10 +12,11 @@ export async function PATCH(request: Request) {
   const userId = await authenticatedUserId(request);
   if (!userId) return Response.json({ error: "Iniciá sesión para guardar la configuración." }, { status: 401 });
 
-  const payload = await request.json() as { name?: string; whatsapp?: string; brandColor?: string; minimumOrder?: number; deliveryZones?: string; deliveryDays?: string };
+  const payload = await request.json() as { name?: string; whatsapp?: string; brandColor?: string; currency?: string; minimumOrder?: number; deliveryZones?: string; deliveryDays?: string };
   const name = payload.name?.trim() ?? "";
   const whatsapp = (payload.whatsapp ?? "").replace(/\D/g, "");
   const brandColor = payload.brandColor?.trim() ?? "";
+  const currency = payload.currency === "USD" ? "USD" : "ARS";
   if (name.length < 2) return Response.json({ error: "Ingresá el nombre del negocio." }, { status: 400 });
   if (whatsapp.length < 8 || whatsapp.length > 15) return Response.json({ error: "Ingresá un WhatsApp válido, con código de área." }, { status: 400 });
   if (!hexColor.test(brandColor)) return Response.json({ error: "Elegí un color válido para tu marca." }, { status: 400 });
@@ -41,6 +42,7 @@ export async function PATCH(request: Request) {
     slug,
     whatsapp: `+${whatsapp}`,
     brandColor,
+    currency,
     minimumOrder: Math.max(0, Number(payload.minimumOrder) || 0),
     deliveryZones: (payload.deliveryZones ?? "").trim().slice(0, 240),
     deliveryDays: (payload.deliveryDays ?? "").trim().slice(0, 160),

@@ -3,6 +3,14 @@ import { getDb } from "@/db";
 import { businesses } from "@/db/schema";
 import { bodyTooLarge } from "../../security";
 
+export async function HEAD() {
+  return new Response(null, { status: 200 });
+}
+
+export async function GET() {
+  return new Response(null, { status: 200 });
+}
+
 function hexBytes(value: string) {
   if (!/^[0-9a-f]{64}$/i.test(value)) return null;
   return Uint8Array.from(value.match(/.{2}/g) ?? [], (byte) => Number.parseInt(byte, 16));
@@ -30,6 +38,7 @@ export async function POST(request: Request) {
     const requestDataId = new URL(request.url).searchParams.get("data.id") || payload.data.id;
     if (!(await validSignature(request, requestDataId))) return Response.json({ ok: false }, { status: 401 });
     const response = await fetch(`https://api.mercadopago.com/preapproval/${encodeURIComponent(payload.data.id)}`, { headers: { authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` } });
+    if (response.status === 404) return Response.json({ ok: true });
     if (!response.ok) return Response.json({ ok: false }, { status: 502 });
     const subscription = await response.json() as { id: string; status?: string; next_payment_date?: string };
     const mapped = subscription.status === "authorized" ? "authorized" : subscription.status === "cancelled" ? "cancelled" : subscription.status === "paused" ? "paused" : "pending";

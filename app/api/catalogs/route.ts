@@ -30,3 +30,18 @@ export async function POST(request: Request) {
   const [business] = await db.insert(businesses).values({ ownerUserId: userId, name: name.slice(0, 80), slug, whatsapp: account.whatsapp, brandColor: account.brandColor, minimumOrder: 0, deliveryZones: account.deliveryZones, deliveryDays: account.deliveryDays, plan: account.plan, billingCycle: account.billingCycle, subscriptionStatus: account.subscriptionStatus, trialEndsAt: account.trialEndsAt, currentPeriodEnd: account.currentPeriodEnd }).returning();
   return Response.json({ business: { id: business.id, name: business.name, slug: business.slug, isActive: business.isActive } }, { status: 201 });
 }
+
+export async function DELETE(request: Request) {
+  const userId = await authenticatedUserId(request);
+  if (!userId) return Response.json({ error: "Iniciá sesión para eliminar un catálogo." }, { status: 401 });
+  const id = Number(new URL(request.url).searchParams.get("id"));
+  if (!Number.isInteger(id) || id <= 0) return Response.json({ error: "Catálogo inválido." }, { status: 400 });
+  const db = getDb();
+  const owned = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).orderBy(asc(businesses.id));
+  const target = owned.find((business) => business.id === id);
+  if (!target) return Response.json({ error: "No encontramos ese catálogo." }, { status: 404 });
+  if (owned.length <= 1) return Response.json({ error: "No podés eliminar tu único catálogo." }, { status: 409 });
+  await db.delete(businesses).where(eq(businesses.id, id));
+  const remaining = owned.filter((business) => business.id !== id);
+  return Response.json({ ok: true, nextCatalogId: remaining[0].id });
+}

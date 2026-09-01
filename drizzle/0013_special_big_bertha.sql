@@ -1,0 +1,1 @@
+ALTER TABLE `businesses` ADD `currency` text DEFAULT 'ARS' NOT NULL;

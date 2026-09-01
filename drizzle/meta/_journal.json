@@ -85,6 +85,20 @@
       "when": 1787926595837,
       "tag": "0011_charming_centennial",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1788225787219,
+      "tag": "0012_loud_sheva_callister",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1788226142281,
+      "tag": "0013_special_big_bertha",
+      "breakpoints": true
     }
   ]
 }

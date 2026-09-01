@@ -9,6 +9,7 @@ export const businesses = sqliteTable("businesses", {
   whatsapp: text("whatsapp").notNull().default(""),
   logoKey: text("logo_key"),
   brandColor: text("brand_color").notNull().default("#fa7c4a"),
+  currency: text("currency").notNull().default("ARS"),
   minimumOrder: real("minimum_order").notNull().default(0),
   deliveryZones: text("delivery_zones").notNull().default(""),
   deliveryDays: text("delivery_days").notNull().default(""),
@@ -80,6 +81,17 @@ export const cancellationRequests = sqliteTable("cancellation_requests", {
   uniqueIndex("idx_cancellation_confirmation").on(table.confirmationCode),
   index("idx_cancellation_email_created").on(table.email, table.createdAt),
 ]);
+
+export const promoCodes = sqliteTable("promo_codes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  code: text("code").notNull(),
+  plan: text("plan").notNull(),
+  months: integer("months").notNull(),
+  expiresAt: text("expires_at"),
+  redeemedAt: text("redeemed_at"),
+  redeemedByUserId: text("redeemed_by_user_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("idx_promo_codes_code").on(table.code)]);
 
 export const rateLimits = sqliteTable("rate_limits", {
   key: text("key").primaryKey(),
