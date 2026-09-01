@@ -248,6 +248,7 @@ export default function Home() {
   const money = settings.currency === "USD" ? dollars : pesos;
   const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3>(1);
   const [businessSetupSaved, setBusinessSetupSaved] = useState(false);
+  const [freshCatalogId, setFreshCatalogId] = useState<number | null>(null);
   const [catalogs, setCatalogs] = useState<CatalogSummary[]>([]);
   const [simpleCatalogId, setSimpleCatalogId] = useState<number | null>(null);
   const [activeCatalogId, setActiveCatalogId] = useState<number | null>(null);
@@ -292,7 +293,7 @@ export default function Home() {
           setBusinessName(data.business.name);
           setSettings({ ...data.business, brandColor: data.business.brandColor || "#fa7c4a", minimumOrder: Number(data.business.minimumOrder) || 0 });
           setMinimumOrderInput(String(Number(data.business.minimumOrder) || 0));
-          setBusinessSetupSaved(data.business.name.trim().toLowerCase() !== "mi distribuidora" && data.business.whatsapp.replace(/\D/g, "").length >= 8);
+          setBusinessSetupSaved(data.business.id !== freshCatalogId && data.business.name.trim().toLowerCase() !== "mi distribuidora" && data.business.whatsapp.replace(/\D/g, "").length >= 8);
           setBilling({ plan: data.business.plan || "trial", billingCycle: data.business.billingCycle || "monthly", subscriptionStatus: data.business.subscriptionStatus || "trial", trialEndsAt: data.business.trialEndsAt, currentPeriodEnd: data.business.currentPeriodEnd, isActive: data.business.isActive });
         }
         setProducts(data.products ?? []);
@@ -305,7 +306,7 @@ export default function Home() {
       .catch((error) => { if (active) setNotice(error instanceof Error ? error.message : "No pudimos conectar la base de datos."); })
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
-  }, [authenticatedFetch, isLoaded, isSignedIn]);
+  }, [authenticatedFetch, isLoaded, isSignedIn, freshCatalogId]);
 
   async function createCatalog(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -316,7 +317,7 @@ export default function Home() {
       const data = await response.json() as { business?: CatalogSummary; error?: string };
       if (!response.ok || !data.business) throw new Error(data.error || "No pudimos crear el catálogo.");
       setCatalogs((current) => [...current, data.business!]);
-      setNewCatalogName(""); setNewCatalogOpen(false); setSection("catalog"); setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setPendingImport(null); setPendingMapping(null); setJustPublished(false); setOnboardingStep(1); setActiveCatalogId(data.business.id);
+      setNewCatalogName(""); setNewCatalogOpen(false); setSection("catalog"); setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setPendingImport(null); setPendingMapping(null); setJustPublished(false); setOnboardingStep(1); setFreshCatalogId(data.business.id); setActiveCatalogId(data.business.id);
       setNotice("Nuevo catálogo creado. Configurá sus datos y después subí el Excel.");
     } catch (error) { setNotice(error instanceof Error ? error.message : "No pudimos crear el catálogo."); }
     finally { setSaving(false); }
@@ -623,6 +624,7 @@ export default function Home() {
       setBusinessName(data.business.name);
       if (data.business.id) setCatalogs((current) => current.map((catalog) => catalog.id === data.business!.id ? { id: catalog.id, name: data.business!.name, slug: data.business!.slug } : catalog));
       setBusinessSetupSaved(true);
+      setFreshCatalogId(null);
       setNotice(products.length ? "Datos guardados. Tu catálogo ya está listo para recibir pedidos." : "Datos guardados. Ahora subí tu Excel para crear el catálogo.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "No pudimos guardar los datos del negocio.");
@@ -652,14 +654,6 @@ export default function Home() {
       setSaving(false);
       event.target.value = "";
     }
-  }
-
-  function repeatOrder() {
-    if (accountPaused) { setNotice("Esta es una vista previa. El catálogo público está pausado."); return; }
-    const next: Record<string, number> = {};
-    products.slice(0, 3).forEach((product, index) => { next[product.code] = [2, 5, 3][index]; });
-    setQuantities(next);
-    setNotice("Último pedido cargado. Podés modificarlo antes de enviarlo.");
   }
 
   async function sendOrder() {
@@ -972,7 +966,7 @@ export default function Home() {
         </section>
       ) : (
         <section className="customer-view" style={{ "--customer-brand": settings.brandColor } as React.CSSProperties}><div className="store-header"><div className="store-identity">{settings.logoKey ? <img src={`/api/logo?slug=${encodeURIComponent(settings.slug)}&v=${logoVersion}`} alt={`Logo de ${businessName}`} /> : <span>{businessName.charAt(0) || "R"}</span>}<div><b>{businessName}</b><small>Lista Comercios · actualizada {lastUpdate.toLowerCase()}</small></div></div><small>Pedido mínimo {money.format(settings.minimumOrder)}</small></div><div className="customer-main">
-          <div className={`welcome ${accountPaused ? "preview-paused" : ""}`}><div><b>{accountPaused ? "Vista previa del catálogo" : "Así ven tus clientes el catálogo"}</b><small>{accountPaused ? "Tus clientes ven un aviso de catálogo pausado." : "Vista previa · botón de ejemplo para repetir un pedido"}</small></div><button className="primary" onClick={() => { if (accountPaused) { setView("business"); setSection("billing"); } else repeatOrder(); }}>{accountPaused ? "Reactivar catálogo" : "Repetir último pedido"}</button></div>
+          <div className={`welcome ${accountPaused ? "preview-paused" : ""}`}><div><b>{accountPaused ? "Vista previa del catálogo" : "Así ven tus clientes el catálogo"}</b><small>{accountPaused ? "Tus clientes ven un aviso de catálogo pausado." : "Vista previa · buscá, agregá cantidades y armá un pedido de prueba"}</small></div>{accountPaused && <button className="primary" onClick={() => { setView("business"); setSection("billing"); }}>Reactivar catálogo</button>}</div>
           {notice && <div className="notice" role="status">{notice}</div>}
           <input value={search} onChange={(event) => { setSearch(event.target.value); setProductPage(1); }} aria-label="Buscar productos" placeholder="Buscar por producto o código…" />
           <div className="category-row">{categories.map((item) => <button className={category === item ? "active" : ""} key={item} onClick={() => { setCategory(item); setProductPage(1); }}>{item}</button>)}</div>
