@@ -3,6 +3,26 @@ import { cancellationRequests } from "@/db/schema";
 import { bodyTooLarge, rateLimit, rateLimitResponse } from "../security";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NOTIFY_EMAIL = "bajas@pasalista.com.ar";
+
+async function notifyOwner(type: string, email: string, reason: string, confirmationCode: string) {
+  if (!process.env.RESEND_API_KEY) return;
+  const label = type === "withdrawal" ? "arrepentimiento" : "baja de servicio";
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: "PasáLista <alertas@pasalista.com.ar>",
+        to: [NOTIFY_EMAIL],
+        subject: `Nueva solicitud de ${label} — ${email}`,
+        html: `<p>Se registró una solicitud de <b>${label}</b>.</p><ul><li><b>Email:</b> ${email}</li><li><b>Código:</b> ${confirmationCode}</li><li><b>Motivo:</b> ${reason || "(sin especificar)"}</li></ul>`,
+      }),
+    });
+  } catch (error) {
+    console.error("Cancellation notification email failed", error);
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,8 +33,10 @@ export async function POST(request: Request) {
     const email = payload.email?.trim().toLowerCase() ?? "";
     if (!emailPattern.test(email) || email.length > 180) return Response.json({ error: "Ingresá el email usado para contratar PasáLista." }, { status: 400 });
     const type = payload.type === "withdrawal" ? "withdrawal" : "cancellation";
+    const reason = (payload.reason ?? "").trim().slice(0, 500);
     const confirmationCode = `PL-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
-    await getDb().insert(cancellationRequests).values({ email, type, reason: (payload.reason ?? "").trim().slice(0, 500), confirmationCode });
+    await getDb().insert(cancellationRequests).values({ email, type, reason, confirmationCode });
+    await notifyOwner(type, email, reason, confirmationCode);
     return Response.json({ confirmationCode }, { status: 201 });
   } catch (error) {
     console.error("Cancellation request failed", error);
