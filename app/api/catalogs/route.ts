@@ -1,6 +1,7 @@
+import { env } from "cloudflare:workers";
 import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { businesses } from "@/db/schema";
+import { businesses, products } from "@/db/schema";
 import { authenticatedUserId } from "../auth";
 import { devPlanFrom } from "../dev-plan";
 
@@ -41,7 +42,11 @@ export async function DELETE(request: Request) {
   const target = owned.find((business) => business.id === id);
   if (!target) return Response.json({ error: "No encontramos ese catálogo." }, { status: 404 });
   if (owned.length <= 1) return Response.json({ error: "No podés eliminar tu único catálogo." }, { status: 409 });
+  const productImages = await db.select({ imageKey: products.imageKey }).from(products).where(eq(products.businessId, id));
+  const keysToDelete = productImages.map((product) => product.imageKey).filter((key): key is string => Boolean(key));
+  if (target.logoKey) keysToDelete.push(target.logoKey);
   await db.delete(businesses).where(eq(businesses.id, id));
+  if (keysToDelete.length) await Promise.all(keysToDelete.map((key) => env.FILES.delete(key)));
   const remaining = owned.filter((business) => business.id !== id);
   return Response.json({ ok: true, nextCatalogId: remaining[0].id });
 }
