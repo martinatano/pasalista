@@ -316,7 +316,7 @@ export default function Home() {
       const data = await response.json() as { business?: CatalogSummary; error?: string };
       if (!response.ok || !data.business) throw new Error(data.error || "No pudimos crear el catálogo.");
       setCatalogs((current) => [...current, data.business!]);
-      setNewCatalogName(""); setNewCatalogOpen(false); setSection("catalog"); setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setActiveCatalogId(data.business.id);
+      setNewCatalogName(""); setNewCatalogOpen(false); setSection("catalog"); setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setPendingImport(null); setPendingMapping(null); setJustPublished(false); setOnboardingStep(1); setActiveCatalogId(data.business.id);
       setNotice("Nuevo catálogo creado. Configurá sus datos y después subí el Excel.");
     } catch (error) { setNotice(error instanceof Error ? error.message : "No pudimos crear el catálogo."); }
     finally { setSaving(false); }
@@ -330,7 +330,7 @@ export default function Home() {
       const data = await response.json() as { ok?: boolean; nextCatalogId?: number; error?: string };
       if (!response.ok || !data.ok) throw new Error(data.error || "No pudimos eliminar el catálogo.");
       setCatalogs((current) => current.filter((catalog) => catalog.id !== id));
-      if (data.nextCatalogId) { setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setActiveCatalogId(data.nextCatalogId); }
+      if (data.nextCatalogId) { setProducts([]); setOrderList([]); setBusinessSetupSaved(false); setCatalogLoading(true); setPendingImport(null); setPendingMapping(null); setJustPublished(false); setOnboardingStep(1); setActiveCatalogId(data.nextCatalogId); }
       setNotice("Catálogo eliminado.");
     } catch (error) { setNotice(error instanceof Error ? error.message : "No pudimos eliminar el catálogo."); }
     finally { setSaving(false); }
