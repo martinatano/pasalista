@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pasalista",
+  "main": "./dist/server/index.js",
+  "compatibility_date": "2026-05-22",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsucGFzYWxpc3RhLmNvbS5hciQ",
+    "NEXT_PUBLIC_LEGAL_NAME": "Martina Tano",
+    "NEXT_PUBLIC_LEGAL_TAX_ID": "27-43570459-5",
+    "NEXT_PUBLIC_LEGAL_ADDRESS": "Ituzaingó, Provincia de Buenos Aires, Argentina",
+    "NEXT_PUBLIC_SUPPORT_EMAIL": "info@barubsas.com.ar",
+    "NEXT_PUBLIC_PRIVACY_EMAIL": "info@barubsas.com.ar"
+  }
+}
