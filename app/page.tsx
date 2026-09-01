@@ -800,6 +800,7 @@ export default function Home() {
 
   function goToHome() {
     setScreen("landing");
+    setNotice("");
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
   }
